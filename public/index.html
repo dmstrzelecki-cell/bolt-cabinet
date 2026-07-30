@@ -71,10 +71,12 @@
   .foot{margin-top:22px;color:#5c6a7d;font-size:11px;text-align:center;line-height:1.7}
   .foot .a{color:var(--cabA);font-weight:700} .foot .b{color:var(--cabB);font-weight:700} .foot .g{color:var(--box);font-weight:700}
   .user-badge{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:11px;color:var(--dim);margin:0 0 8px}
+  .user-badge[hidden]{display:none}
   .user-badge b{color:var(--txt)}
   .user-badge button{font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:7px;padding:3px 8px;cursor:pointer}
   .login-wrap{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
     background:rgba(13,17,23,.92);backdrop-filter:blur(2px);padding:20px}
+  .login-wrap[hidden]{display:none}
   .login-card{width:100%;max-width:320px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 22px;text-align:center}
   .login-card h1{font-size:17px;margin:0 0 4px}
   .login-sub{color:var(--dim);font-size:13px;margin:0 0 18px}
