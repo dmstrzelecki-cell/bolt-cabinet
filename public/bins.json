@@ -1,5 +1,5 @@
 {
- "version": "2026-07-27e",
+ "version": "2026-07-30a",
  "count": 240,
  "bins": [
   {
@@ -2465,17 +2465,16 @@
    "id": "NB-5044"
   },
   {
-   "cab": "?",
-   "bin": "\u2014",
-   "row": "",
-   "col": "",
-   "pn": "\u20261303",
-   "zone": "Back stock \u2014 no bin",
-   "verify": true,
+   "cab": "B",
+   "bin": "N8",
+   "row": "N",
+   "col": "8",
+   "pn": "11561303",
+   "zone": "Main",
+   "verify": false,
    "boxes": 4,
    "binFull": false,
-   "boxNote": "Likely misread of 1304 -> CB-N1. Confirm part # + bin",
-   "id": "NB-1303"
+   "id": "B-N8"
   }
  ]
 }

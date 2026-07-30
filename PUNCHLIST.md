@@ -11,10 +11,9 @@
 
 ## Back stock with no home (need full part # + a bin)
 - **…5044** — 8 boxes, no match anywhere
-- **…1303** — 4 boxes, likely a 1304 misread → **CB-N1** (confirm)
 
 ## Row-width unknowns (is there one more bin on the end?)
-- CB main **N8?**  ·  CA main **E8?**
+- CA main **E8?**
 
 ## Low-confidence reads (`verify: true`) to confirm
 - CA: A4 "2275", C4–C8 layout, F1/K1 (dup 11603036), F5 "11605396", H6,
