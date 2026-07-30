@@ -1,5 +1,6 @@
 state.json
 employees.json
+additions.json
 audit.log
 __pycache__/
 *.pyc

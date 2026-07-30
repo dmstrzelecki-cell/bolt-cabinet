@@ -87,6 +87,21 @@
     border:1px solid var(--box-line);background:var(--box-bg);color:var(--box);cursor:pointer}
   .pin-submit:active{transform:scale(.98)}
   .pin-msg{min-height:18px;margin-top:12px;font-size:12px;color:#ff9bb2}
+  .addpart-btn{width:100%;margin-top:10px;font-size:13px;font-weight:700;padding:10px;border-radius:11px;
+    border:1px solid var(--box-line);background:transparent;color:var(--box);cursor:pointer}
+  .addpart-btn:disabled{opacity:.4;cursor:not-allowed}
+  .form-card{width:100%;max-width:340px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;text-align:left}
+  .form-card h1{font-size:17px;margin:0 0 16px;text-align:center}
+  .modal-field{margin-top:14px}
+  .modal-field label{display:block;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+  .modal-field input,.modal-field select{width:100%;font-size:16px;padding:10px 12px;border-radius:10px;
+    border:1px solid var(--line);background:var(--panel2);color:var(--txt);outline:none}
+  .modal-field input:focus,.modal-field select:focus{border-color:var(--cabB);box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+  .modal-actions{display:flex;gap:8px;margin-top:18px}
+  .modal-actions button{flex:1;font-size:14px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer}
+  .modal-btn-primary{border:1px solid var(--box-line);background:var(--box-bg);color:var(--box)}
+  .modal-btn-secondary{border:1px solid var(--line);background:transparent;color:var(--dim)}
+  .modal-msg{min-height:18px;margin-top:10px;font-size:12px;color:#ff9bb2;text-align:center}
 </style>
 </head>
 <body>
@@ -99,6 +114,36 @@
     <div id="pinMsg" class="pin-msg"></div>
   </div>
 </div>
+<div id="addPartScreen" class="login-wrap" hidden>
+  <div class="form-card">
+    <h1>Add new part</h1>
+    <div class="modal-field">
+      <label for="apPn">Part number</label>
+      <input id="apPn" autocomplete="off" placeholder="e.g. 11602909">
+    </div>
+    <div class="modal-field">
+      <label for="apCab">Location</label>
+      <select id="apCab">
+        <option value="">No bin yet — back stock only</option>
+        <option value="A">Cabinet A</option>
+        <option value="B">Cabinet B</option>
+      </select>
+    </div>
+    <div class="modal-field" id="apBinField" hidden>
+      <label for="apBin">Bin</label>
+      <input id="apBin" autocomplete="off" placeholder="e.g. N9 or 6-5">
+    </div>
+    <div class="modal-field">
+      <label for="apBoxes">Boxes arriving</label>
+      <input id="apBoxes" type="number" min="0" value="1">
+    </div>
+    <div class="modal-actions">
+      <button id="apCancel" type="button" class="modal-btn-secondary">Cancel</button>
+      <button id="apSubmit" type="button" class="modal-btn-primary">Add part</button>
+    </div>
+    <div id="apMsg" class="modal-msg"></div>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <div id="userBadge" class="user-badge" hidden><b id="userName"></b><button id="logoutBtn" type="button">Log out</button></div>
@@ -109,6 +154,7 @@
       <button id="clr" aria-label="clear">&times;</button>
     </div>
     <div class="hint">Type the last 4 of a part number. Type <b>back stock</b> to list all refill boxes.</div>
+    <button id="addPartBtn" class="addpart-btn" type="button" hidden>+ Add new part</button>
   </header>
   <div id="results"></div>
   <div class="foot">
@@ -235,6 +281,7 @@
     if(liveNote) liveNote.textContent = apiMode
       ? 'Live — counts sync with the T320 server.'
       : 'Counts show read-only; the +/− buttons and Bin-full toggle go live when deployed to the T320.';
+    updateAddPartBtn();
   }
   q.addEventListener('input',render);
   clr.addEventListener('click',function(){q.value='';q.focus();render();});
@@ -272,8 +319,50 @@
   pinEl.addEventListener('keydown',function(e){ if(e.key==='Enter') submitPin(); });
   document.getElementById('logoutBtn').addEventListener('click',function(){
     fetch('/api/logout',{method:'POST'}).then(function(){
-      currentUser=null; updateUserBadge(); showLogin();
+      currentUser=null; updateUserBadge(); updateAddPartBtn(); showLogin();
     });
+  });
+
+  var addPartBtn=document.getElementById('addPartBtn'), addPartScreen=document.getElementById('addPartScreen'),
+      apPn=document.getElementById('apPn'), apCab=document.getElementById('apCab'),
+      apBinField=document.getElementById('apBinField'), apBin=document.getElementById('apBin'),
+      apBoxes=document.getElementById('apBoxes'), apMsg=document.getElementById('apMsg');
+
+  function updateAddPartBtn(){
+    addPartBtn.hidden = !apiMode;
+    var canEdit = !!(currentUser && currentUser.role==='editor');
+    addPartBtn.disabled = !canEdit;
+    addPartBtn.title = canEdit ? '' : 'Editors only';
+  }
+  apCab.addEventListener('change',function(){
+    apBinField.hidden = !apCab.value;
+    if(!apCab.value) apBin.value='';
+  });
+  function showAddPart(){
+    apPn.value=''; apCab.value=''; apBin.value=''; apBoxes.value='1'; apMsg.textContent='';
+    apBinField.hidden=true; addPartScreen.hidden=false; apPn.focus();
+  }
+  function hideAddPart(){ addPartScreen.hidden=true; }
+  addPartBtn.addEventListener('click',showAddPart);
+  document.getElementById('apCancel').addEventListener('click',hideAddPart);
+  addPartScreen.addEventListener('keydown',function(e){ if(e.key==='Escape') hideAddPart(); });
+  document.getElementById('apSubmit').addEventListener('click',function(){
+    var pn=(apPn.value||'').trim();
+    if(!pn){ apMsg.textContent='Enter a part number.'; return; }
+    var cab=apCab.value;
+    var bin=(apBin.value||'').trim();
+    if(cab && !bin){ apMsg.textContent='Enter a bin location, or switch to "No bin yet".'; return; }
+    var boxes=parseInt(apBoxes.value,10); if(isNaN(boxes)||boxes<0) boxes=0;
+    apMsg.textContent='Adding…';
+    postJSON('/api/parts',{pn:pn,cab:cab,bin:bin,boxes:boxes}).then(function(res){
+      if(res.status===401){ hideAddPart(); currentUser=null; updateUserBadge(); updateAddPartBtn(); showLogin('Session expired — log in again.'); return; }
+      if(res.body && res.body.ok){
+        BINS.push(res.body.bin); indexData(); hideAddPart();
+        q.value=pn.slice(-4); render();
+      } else {
+        apMsg.textContent=(res.body && res.body.error) || 'Could not add part.';
+      }
+    }).catch(function(){ apMsg.textContent='Connection error — try again.'; });
   });
 
   function loadLiveBins(){

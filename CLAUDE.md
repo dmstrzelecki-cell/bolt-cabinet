@@ -21,8 +21,13 @@ per-employee PIN.
 - `employees.json` — PIN → `{name, role}` registry, T320-only. **Gitignored,
   never commit** (contains employee IDs/names). Seed template used locally
   during dev; real roster lives only on the container.
-- `audit.log` — JSONL, one line per box/bin-full change (who, bin, before/after,
-  timestamp). Server-created, append-only. **Gitignored.**
+- `audit.log` — JSONL, one line per box/bin-full/add-part change (who, bin,
+  before/after or pn, timestamp). Server-created, append-only. **Gitignored.**
+- `additions.json` — new-part records added live from the app (`+ Add new
+  part`), same shape as a `bins.json` record. Server-created/owned, kept
+  separate from the curated file so the container's data never drifts from
+  what's in git. **Gitignored.** `merged()` combines this with `bins.json`
+  before responding to `/api/bins`.
 - `PUNCHLIST.md` — open data gaps to close before go-live.
 
 ## Deploy topology
@@ -67,7 +72,9 @@ Top level: `{ "version", "count", "bins": [ ...records ] }`. Each record:
 - `cab` — `"A"`, `"B"`, or `"?"` (back-stock item with no bin yet)
 - `bin` — code within the cabinet, e.g. `"E3"`, `"6-1"` (`"—"` for no-bin)
 - `row`, `col` — parsed from `bin`
-- `pn` — full part number (string). No-bin items store `"…<last4>"`.
+- `pn` — full part number (string). Legacy no-bin items (read off a box label
+  with only the last 4 visible) store `"…<last4>"`; live-added no-bin items
+  store the real full number, since whoever adds them typically knows it.
 - `zone` — `"Left Door"` | `"Main"` | `"Right Door"` | `"Back stock — no bin"`
 - `verify` — `true` = low-confidence read, eyeball before trusting
 - `boxes` — refill boxes on the shelf (int, optional) — **seed value; live count lives in state.json**
@@ -100,6 +107,13 @@ The server splits **curated data** (`bins.json`, tracked) from **live state**
   initializes unseen ids to `{boxes:0, binFull:false}` first, so adding the
   first box to a bin with no prior count works. Auth + `editor` role required.
 - `POST /api/binfull {id, value}` → toggle. Auth + `editor` role required.
+- `POST /api/parts {pn, cab, bin, boxes}` → adds a brand-new part, either to
+  a real bin (`cab` + `bin` both required; `row`/`col`/`zone` auto-computed
+  from `bin` the same way the physical addressing scheme works) or as a
+  no-bin back-stock item (omit `cab`/`bin`; id becomes `NB-<last4>`). Rejects
+  with 409 if the target bin/no-bin-id is already taken — this never
+  overwrites an existing record. Writes to `additions.json` + seeds
+  `state.json` in the same transaction. Auth + `editor` role required.
 Run: `python3 server/server.py` (serves `:8080`, override with `PORT=`).
 
 Front end: every bin card (not just ones with a seeded `boxes` count) renders
@@ -107,8 +121,17 @@ Front end: every bin card (not just ones with a seeded `boxes` count) renders
 omitted for no-bin (`NB-`) back-stock entries. Buttons stay disabled until a
 session is authenticated, and again if the logged-in employee's role is
 `viewer`. Falls back to read-only static mode if the API isn't reachable.
+A `+ Add new part` button (header, only rendered when the live API is
+reachable) opens a form for logging a part that isn't in the system yet —
+pick a cabinet + bin, or leave it as back-stock-only with no home. Same
+editor-only gating as the box buttons; posts to `/api/parts`.
 
 ## Don'ts
 - Don't use the 90-bin **CB-only** `bins.json` from the accidental side chat —
   this 238-bin (240-record) two-cabinet file is the source of truth.
 - Don't hand-edit `state.json` for curated changes — those belong in `bins.json`.
+- Don't hand-edit `additions.json` either — it's the live-add equivalent of
+  `state.json`. If a live-added part should graduate into the curated,
+  git-tracked `bins.json` (e.g. once its bin is double-checked), move the
+  record over by hand and remove it from `additions.json` so it isn't
+  double-counted by `merged()`.

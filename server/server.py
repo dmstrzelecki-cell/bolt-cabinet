@@ -11,8 +11,13 @@ maps each employee's 6-digit PIN to a name + role). Static files (index.html,
 images) are served unauthenticated so the login screen itself can load.
 Every box/bin-full write is appended to ../audit.log (gitignored, JSONL) with
 who made the change, what bin, and the before/after values.
+
+New parts added from the app (POST /api/parts) land in ../additions.json
+(gitignored, T320-only) rather than the curated, git-tracked bins.json --
+merged() combines both so the two never have to be reconciled by hand, and
+the container's data never drifts from what's in git.
 """
-import json, os, threading, secrets, time, datetime
+import json, os, re, threading, secrets, time, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse
@@ -22,6 +27,7 @@ PUBLIC    = os.path.normpath(os.path.join(ROOT, "..", "public"))
 BINS      = os.path.join(PUBLIC, "bins.json")
 STATE     = os.path.normpath(os.path.join(ROOT, "..", "state.json"))
 EMPLOYEES = os.path.normpath(os.path.join(ROOT, "..", "employees.json"))
+ADDITIONS = os.path.normpath(os.path.join(ROOT, "..", "additions.json"))
 AUDIT     = os.path.normpath(os.path.join(ROOT, "..", "audit.log"))
 PORT      = int(os.environ.get("PORT", "8080"))
 _lock     = threading.Lock()
@@ -52,6 +58,16 @@ CTYPES = {"html":"text/html","json":"application/json","js":"text/javascript",
 def load_bins():
     with open(BINS) as f: return json.load(f)
 
+def load_additions():
+    if not os.path.exists(ADDITIONS):
+        return []
+    with open(ADDITIONS) as f: return json.load(f)
+
+def save_additions(items):
+    tmp = ADDITIONS + ".tmp"
+    with open(tmp, "w") as f: json.dump(items, f, indent=1)
+    os.replace(tmp, ADDITIONS)
+
 def save_state(state):
     tmp = STATE + ".tmp"
     with open(tmp, "w") as f: json.dump(state, f, indent=1)
@@ -69,12 +85,35 @@ def load_state():
 
 def merged():
     data = load_bins(); state = load_state()
-    for r in data["bins"]:
+    bins = list(data["bins"]) + load_additions()
+    for r in bins:
         s = state.get(r["id"])
         if s:
             r["boxes"]   = s.get("boxes", r.get("boxes", 0))
             r["binFull"] = s.get("binFull", r.get("binFull", False))
-    return data
+    return {"version": data["version"], "count": len(bins), "bins": bins}
+
+def all_ids():
+    return {r["id"] for r in load_bins()["bins"]} | {r["id"] for r in load_additions()}
+
+# Mirrors the physical addressing scheme in CLAUDE.md.
+def parse_bin_code(code):
+    m = re.match(r'^(\d+)-(\d+)$', code)          # CB numeric block, e.g. "6-1"
+    if m: return m.group(1), m.group(2)
+    m = re.match(r'^([A-Za-z]+)(\d+)$', code)     # letter row, e.g. "N8"
+    if m: return m.group(1).upper(), m.group(2)
+    return None, None
+
+def compute_zone(cab, row):
+    if cab == "A":
+        if row in ("A", "B", "C"): return "Left Door"
+        if row in ("M", "N", "O", "P", "Q", "R", "S", "T"): return "Right Door"
+        return "Main"                              # D-L
+    if cab == "B":
+        if row.isdigit() or row in ("A","B","C","D","E","F","G","H","I"): return "Left Door"
+        if row in ("S", "T", "U", "V", "W", "X", "Y", "Z"): return "Right Door"
+        return "Main"                              # J-R
+    return None
 
 class H(BaseHTTPRequestHandler):
     def _json(self, obj, code=200, extra_headers=None):
@@ -176,6 +215,50 @@ class H(BaseHTTPRequestHandler):
         session = self._session()
         if not session:
             return self._json({"error": "unauthorized"}, 401)
+
+        if path == "/api/parts":
+            if session["role"] != "editor":
+                return self._json({"error": "forbidden"}, 403)
+            pn = str(payload.get("pn", "")).strip()
+            if not pn:
+                return self._json({"error": "part number required"}, 400)
+            cab = str(payload.get("cab") or "").strip().upper()
+            bin_code = str(payload.get("bin") or "").strip().upper()
+            try:
+                boxes = max(0, int(payload.get("boxes", 1)))
+            except (TypeError, ValueError):
+                return self._json({"error": "boxes must be a number"}, 400)
+
+            with _lock:
+                if bin_code:
+                    if cab not in ("A", "B"):
+                        return self._json({"error": "pick a cabinet for that bin"}, 400)
+                    row, col = parse_bin_code(bin_code)
+                    if row is None:
+                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — use e.g. N9 or 6-5"}, 400)
+                    rid = f"{cab}-{bin_code}"
+                    if rid in all_ids():
+                        return self._json({"error": f"bin {cab}-{bin_code} is already assigned"}, 409)
+                    record = {"cab": cab, "bin": bin_code, "row": row, "col": col, "pn": pn,
+                              "zone": compute_zone(cab, row), "verify": False,
+                              "boxes": boxes, "binFull": False, "id": rid}
+                else:
+                    last4 = pn[-4:]
+                    rid = f"NB-{last4}"
+                    if rid in all_ids():
+                        return self._json({"error": f"a no-bin item ending in {last4} already exists — "
+                                                      "give this one a bin location instead"}, 409)
+                    record = {"cab": "?", "bin": "—", "row": "", "col": "", "pn": pn,
+                              "zone": "Back stock — no bin", "verify": False,
+                              "boxes": boxes, "binFull": False, "id": rid}
+                additions = load_additions()
+                additions.append(record)
+                save_additions(additions)
+                state = load_state()
+                state[rid] = {"boxes": boxes, "binFull": False}
+                save_state(state)
+                audit(session["employeeId"], session["name"], rid, "add_part", pn=pn, boxes=boxes)
+                return self._json({"ok": True, "bin": record})
 
         rid = payload.get("id")
         if not rid:
