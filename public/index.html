@@ -70,11 +70,36 @@
   .empty b{display:block;color:var(--txt);font-size:16px;margin-bottom:4px}
   .foot{margin-top:22px;color:#5c6a7d;font-size:11px;text-align:center;line-height:1.7}
   .foot .a{color:var(--cabA);font-weight:700} .foot .b{color:var(--cabB);font-weight:700} .foot .g{color:var(--box);font-weight:700}
+  .user-badge{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:11px;color:var(--dim);margin:0 0 8px}
+  .user-badge b{color:var(--txt)}
+  .user-badge button{font-size:11px;color:var(--dim);background:transparent;border:1px solid var(--line);border-radius:7px;padding:3px 8px;cursor:pointer}
+  .login-wrap{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:rgba(13,17,23,.92);backdrop-filter:blur(2px);padding:20px}
+  .login-card{width:100%;max-width:320px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 22px;text-align:center}
+  .login-card h1{font-size:17px;margin:0 0 4px}
+  .login-sub{color:var(--dim);font-size:13px;margin:0 0 18px}
+  .pin-input{width:100%;font-size:32px;font-weight:700;letter-spacing:10px;text-align:center;
+    padding:14px 10px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);outline:none}
+  .pin-input:focus{border-color:var(--cabB);box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+  .pin-submit{width:100%;margin-top:12px;font-size:14px;font-weight:700;padding:12px;border-radius:12px;
+    border:1px solid var(--box-line);background:var(--box-bg);color:var(--box);cursor:pointer}
+  .pin-submit:active{transform:scale(.98)}
+  .pin-msg{min-height:18px;margin-top:12px;font-size:12px;color:#ff9bb2}
 </style>
 </head>
 <body>
+<div id="loginScreen" class="login-wrap" hidden>
+  <div class="login-card">
+    <h1>Bolt Cabinet Lookup</h1>
+    <p class="login-sub">Enter your 6-digit employee PIN</p>
+    <input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
+    <button id="pinSubmit" type="button" class="pin-submit">Log in</button>
+    <div id="pinMsg" class="pin-msg"></div>
+  </div>
+</div>
 <div class="wrap">
   <header>
+    <div id="userBadge" class="user-badge" hidden><b id="userName"></b><button id="logoutBtn" type="button">Log out</button></div>
     <h1>Bolt Cabinet Lookup</h1>
     <p class="sub" id="sub">Loading…</p>
     <div class="searchbox">
@@ -97,7 +122,7 @@
   var q=document.getElementById('q'), clr=document.getElementById('clr'),
       results=document.getElementById('results'), sub=document.getElementById('sub'),
       liveNote=document.getElementById('liveNote');
-  var last4={}; var apiMode=false;
+  var last4={}; var apiMode=false; var currentUser=null;
   function loc(e){ return e.cab==='?' ? 'NO BIN' : 'C'+e.cab+'-'+e.bin; }
   function indexData(){
     last4={};
@@ -122,10 +147,13 @@
     var boxes = e.boxes || 0;
     var note = e.boxNote ? '<div class="box-note">⚠ '+e.boxNote+'</div>' : '';
     var live = apiMode && e.id;
-    var dis = live ? '' : ' disabled';
+    var viewerOnly = !!(currentUser && currentUser.role==='viewer');
+    var dis = (live && !viewerOnly) ? '' : ' disabled';
     var fullCls = 'bfull' + (e.binFull ? ' on' : '');
     var fullBtn = e.cab==='?' ? '' :
       '<button class="'+fullCls+'" data-act="full"'+dis+'>'+(e.binFull?'Bin full ✓':'Bin full')+'</button>';
+    var soon = !live ? '<div class="box-soon">Buttons activate once deployed to the T320.</div>'
+      : viewerOnly ? '<div class="box-soon">View only — ask an editor to update counts.</div>' : '';
     return '<div class="box" data-id="'+(e.id||'')+'">'+
       '<div class="box-row">'+
         '<div class="box-cnt"><span>'+boxes+'</span>box'+(boxes==1?'':'es')+' in back stock</div>'+
@@ -134,13 +162,12 @@
           '<button class="bbtn" data-act="tobin"'+dis+'>− to bin</button>'+
           fullBtn+
         '</div>'+
-      '</div>'+ note +
-      (live ? '' : '<div class="box-soon">Buttons activate once deployed to the T320.</div>') +
+      '</div>'+ note + soon +
     '</div>';
   }
   function postJSON(url,body){
     return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-      .then(function(r){return r.ok?r.json():null;});
+      .then(function(r){ return r.json().catch(function(){return null;}).then(function(j){return {status:r.status, body:j};}); });
   }
   results.addEventListener('click', function(ev){
     var btn = ev.target.closest('button[data-act]');
@@ -154,7 +181,10 @@
     btn.disabled = true;
     var req = act==='full' ? postJSON('/api/binfull',{id:id,value:!entry.binFull})
       : postJSON('/api/box',{id:id,delta:act==='recv'?1:-1});
-    req.then(function(d){
+    req.then(function(res){
+      if(res.status===401){ currentUser=null; updateUserBadge(); showLogin('Session expired — log in again.'); return; }
+      if(res.status===403){ render(); return; }
+      var d=res.body;
       if(d && typeof d.boxes==='number'){ entry.boxes=d.boxes; entry.binFull=!!d.binFull; }
       render();
     }).catch(function(){ btn.disabled=false; });
@@ -206,16 +236,64 @@
   }
   q.addEventListener('input',render);
   clr.addEventListener('click',function(){q.value='';q.focus();render();});
-  indexData(); render(); q.focus();
-  fetch('/api/bins',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;})
-    .then(function(d){
-      if(d&&d.bins&&d.bins.length){ setData(d.bins,true); return; }
-      return fetchStatic();
-    }).catch(fetchStatic);
+
+  var loginScreen=document.getElementById('loginScreen'), pinEl=document.getElementById('pin'),
+      pinMsg=document.getElementById('pinMsg'), userBadge=document.getElementById('userBadge'),
+      userName=document.getElementById('userName');
+
+  function showLogin(msg){
+    pinMsg.textContent = msg || '';
+    pinEl.value=''; loginScreen.hidden=false; pinEl.focus();
+  }
+  function hideLogin(){ loginScreen.hidden=true; }
+  function updateUserBadge(){
+    if(currentUser){ userName.textContent=currentUser.name+(currentUser.role==='viewer'?' (view only)':''); userBadge.hidden=false; }
+    else { userBadge.hidden=true; }
+  }
+  function submitPin(){
+    var pin=(pinEl.value||'').trim();
+    if(!/^[0-9]{6}$/.test(pin)){ pinMsg.textContent='Enter your 6-digit PIN.'; return; }
+    pinMsg.textContent='Checking…';
+    postJSON('/api/login',{pin:pin}).then(function(res){
+      if(res.body && res.body.ok){
+        currentUser={name:res.body.name, role:res.body.role};
+        hideLogin(); updateUserBadge(); loadLiveBins();
+      } else if(res.status===429){
+        var wait = res.body && res.body.retryAfter ? Math.max(1,Math.ceil(res.body.retryAfter/60)) : 5;
+        pinMsg.textContent='Too many attempts. Try again in ~'+wait+' min.';
+      } else {
+        pinMsg.textContent='Incorrect PIN.';
+      }
+    }).catch(function(){ pinMsg.textContent='Connection error — try again.'; });
+  }
+  document.getElementById('pinSubmit').addEventListener('click',submitPin);
+  pinEl.addEventListener('keydown',function(e){ if(e.key==='Enter') submitPin(); });
+  document.getElementById('logoutBtn').addEventListener('click',function(){
+    fetch('/api/logout',{method:'POST'}).then(function(){
+      currentUser=null; updateUserBadge(); showLogin();
+    });
+  });
+
+  function loadLiveBins(){
+    fetch('/api/bins',{cache:'no-store'}).then(function(r){
+        if(r.status===401){ currentUser=null; updateUserBadge(); showLogin('Session expired — log in again.'); return null; }
+        return r.ok?r.json():null;
+      })
+      .then(function(d){ if(d&&d.bins&&d.bins.length) setData(d.bins,true); })
+      .catch(function(){});
+  }
   function fetchStatic(){
     return fetch('bins.json',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;})
       .then(function(d){ if(d&&d.bins&&d.bins.length) setData(d.bins,false); }).catch(function(){});
   }
+
+  indexData(); render(); q.focus();
+  fetch('/api/session',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;})
+    .then(function(s){
+      if(s && s.authenticated){ currentUser={name:s.name, role:s.role}; updateUserBadge(); loadLiveBins(); }
+      else if(s && s.authenticated===false){ showLogin(); }
+      else { fetchStatic(); }
+    }).catch(fetchStatic);
 })();
 </script>
 </body>

@@ -1,4 +1,6 @@
 state.json
+employees.json
+audit.log
 __pycache__/
 *.pyc
 .DS_Store
