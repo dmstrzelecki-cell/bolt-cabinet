@@ -833,5 +833,12 @@ class H(BaseHTTPRequestHandler):
         pass
 
 if __name__ == "__main__":
+    # Fail at startup, not on the first login attempt: a server that boots
+    # without a signing key looks healthy and then turns every login into a
+    # 500 at the worst possible moment.
+    session_key()
+    if not load_users().get("users"):
+        print("WARNING: no users yet -- nobody can log in.")
+        print("         Run: python3 server/adminctl.py bootstrap")
     print(f"Bolt Cabinet Lookup - serving {PUBLIC} on http://0.0.0.0:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), H).serve_forever()
