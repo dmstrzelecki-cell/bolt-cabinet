@@ -78,7 +78,9 @@ def write_json(path, obj, mode=None):
     """Atomic write: full temp file, fsync, then rename over the target, so a
     crash or a yanked power cord mid-write can never leave a truncated file."""
     tmp = path + ".tmp"
-    with open(tmp, "w") as f:
+    # newline="\n" so an export run from a Windows dev machine doesn't rewrite
+    # every line of the tracked bins.json with CRLF.
+    with open(tmp, "w", newline="\n") as f:
         json.dump(obj, f, indent=1)
         f.flush()
         os.fsync(f.fileno())
