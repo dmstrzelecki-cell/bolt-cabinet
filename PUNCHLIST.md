@@ -28,6 +28,14 @@
   `adminctl.py unlock <badge>` works from the console. A super-user's own
   badge lock still applies, so the admin badge is not a brute-force free pass.
 
+## Known limitations (deliberate, revisit later)
+- **No self-service PIN change.** The PIN an admin types when creating someone
+  is theirs permanently until an admin resets it. So new PINs get read aloud,
+  and nobody can rotate their own if it's overheard or shoulder-surfed.
+  Deferred on 2026-08-20, not a blocker. The fix would be a
+  `POST /api/me/pin` taking current + new PIN — no permission flag needed,
+  since it only touches the caller's own record — plus a field in the app.
+
 ## Carried-forward risks
 - **Git credentials for the container.** Nobody has written down what happens
   when the read-only deploy key at `/opt/bolt-cabinet/.git_deploy_key`
