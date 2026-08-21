@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
 """Bolt Cabinet Lookup - T320 server (Python stdlib only, no deps).
 
-Serves the static app in ../public and persists live back-stock counts in
-../state.json (separate from the curated bins.json so inventory edits stay
-git-clean). Run:  python3 server/server.py   (PORT env overrides :8080)
+Serves the static app in ../public and owns every piece of live state that
+must not live in git. Run:  python3 server/server.py   (PORT env overrides :8080)
 
-Live API access (/api/bins and writes) requires a session established via
-POST /api/login {pin} against ../employees.json (gitignored, T320-only —
-maps each employee's 6-digit PIN to a name + role). Static files (index.html,
-images) are served unauthenticated so the login screen itself can load.
-Every box/bin-full write is appended to ../audit.log (gitignored, JSONL) with
-who made the change, what bin, and the before/after values.
+Auth: each user has a badge id + a PIN, stored in ../users.json with the PIN
+scrypt-hashed (never plaintext, never logged). POST /api/login {id, pin}
+returns an HMAC-signed session cookie; the cookie carries only a user id and
+an issue time, and permissions are re-read from users.json on every request.
+Every mutating endpoint re-checks the caller's permission server-side --
+hiding a button in the UI is cosmetic, this is the actual boundary.
 
-New parts added from the app (POST /api/parts) land in ../additions.json
-(gitignored, T320-only) rather than the curated, git-tracked bins.json --
-merged() combines both so the two never have to be reconciled by hand, and
-the container's data never drifts from what's in git.
+Server-owned, gitignored files, all beside this repo in ../:
+  .env            BOLT_SESSION_KEY, generated on the container
+  users.json      badge id -> name, PIN hash, permission flags
+  state.json      live box counts / binFull, keyed by record id
+  overrides.json  bin/cabinet/part-number edits overlaying bins.json
+  additions.json  brand-new records added from the app
+  audit.log       JSONL, one line per change: who, what, before/after
+  backups/        timestamped copies (see adminctl.py)
+
+bins.json stays a clean, git-tracked seed that the server never writes to --
+a dirty working tree would make `git pull --ff-only` fail on the container
+and block every future deploy. merged() layers overrides and counts on top
+of it at serve time instead.
 """
-import json, os, re, threading, secrets, time, datetime
+import json, os, re, threading, secrets, time, datetime, hashlib, hmac, base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse
@@ -30,7 +38,6 @@ STATE     = os.path.join(APPDIR, "state.json")
 ADDITIONS = os.path.join(APPDIR, "additions.json")
 OVERRIDES = os.path.join(APPDIR, "overrides.json")
 USERS     = os.path.join(APPDIR, "users.json")
-EMPLOYEES = os.path.join(APPDIR, "employees.json")   # legacy, retired in Stage 2
 AUDIT     = os.path.join(APPDIR, "audit.log")
 ENVFILE   = os.path.join(APPDIR, ".env")
 BACKUPS   = os.path.join(APPDIR, "backups")
@@ -97,24 +104,154 @@ def load_overrides():
 def save_overrides(doc):
     write_json(OVERRIDES, doc)
 
-def audit(employee_id, name, bin_id, action, **fields):
-    entry = {"ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-              "employeeId": employee_id, "name": name, "binId": bin_id, "action": action}
+def now_iso():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+def audit(user, action, target_id=None, **fields):
+    """Append-only attribution log. One JSON object per line. Never contains
+    PIN material -- see hash_pin(); only ids, names, and before/after values."""
+    entry = {"ts": now_iso(),
+             "user_id": (user or {}).get("id"),
+             "name":    (user or {}).get("name"),
+             "action":  action,
+             "target_id": target_id}
     entry.update(fields)
     with open(AUDIT, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
-SESSIONS      = {}                 # token -> {"name","role","created"}
-SESSION_TTL   = 12 * 3600          # a work shift
-_fail_lock    = threading.Lock()
-FAILS         = {}                 # client key -> {"count","locked_until"}
-MAX_FAILS     = 5
-LOCKOUT_SECS  = 5 * 60
+# ---------------------------------------------------------------- auth -----
+SESSION_TTL  = 12 * 3600           # a work shift
+MAX_FAILS    = 5                   # per badge id AND per source IP
+LOCKOUT_SECS = 15 * 60
+SCRYPT_N, SCRYPT_R, SCRYPT_P = 16384, 8, 1
 
-def load_employees():
-    if not os.path.exists(EMPLOYEES):
-        return {}
-    with open(EMPLOYEES) as f: return json.load(f)
+RE_BADGE = re.compile(r"^[0-9]{1,12}$")
+RE_PIN   = re.compile(r"^[0-9]{6,32}$")
+
+_fail_lock = threading.Lock()
+IP_FAILS   = {}                    # source ip -> {"count", "locked_until"}
+
+def _b64(raw):  return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+def _unb64(s):  return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+def hash_pin(pin):
+    """scrypt with a fresh per-user salt. The PIN itself is never stored."""
+    salt = secrets.token_bytes(16)
+    h = hashlib.scrypt(pin.encode(), salt=salt, n=SCRYPT_N, r=SCRYPT_R,
+                       p=SCRYPT_P, dklen=32)
+    return {"algo": "scrypt", "salt": _b64(salt), "hash": _b64(h),
+            "n": SCRYPT_N, "r": SCRYPT_R, "p": SCRYPT_P}
+
+def verify_pin(pin, rec):
+    if not isinstance(rec, dict) or rec.get("algo") != "scrypt":
+        return False
+    try:
+        expect = _unb64(rec["hash"])
+        got = hashlib.scrypt(pin.encode(), salt=_unb64(rec["salt"]),
+                             n=int(rec["n"]), r=int(rec["r"]), p=int(rec["p"]),
+                             dklen=len(expect))
+    except Exception:
+        return False
+    return hmac.compare_digest(got, expect)
+
+def pin_problem(pin, badge_id):
+    """Returns a human message if the PIN is too weak to accept, else None.
+    Used at bootstrap / add-user / reset time -- never during login."""
+    if not RE_PIN.match(pin or ""):
+        return "PIN must be 6 or more digits, digits only."
+    if len(set(pin)) == 1:
+        return "PIN cannot be all the same digit."
+    runs = all(int(pin[i + 1]) - int(pin[i]) == 1 for i in range(len(pin) - 1))
+    back = all(int(pin[i]) - int(pin[i + 1]) == 1 for i in range(len(pin) - 1))
+    if runs or back:
+        return "PIN cannot be a run of consecutive digits."
+    if pin == badge_id:
+        return "PIN cannot be the same as your badge number."
+    return None
+
+def has(user, perm):
+    """The one place a permission is checked. Server-side only -- the UI
+    hiding a button is cosmetic; this is the actual boundary."""
+    return bool(user) and perm in (user.get("perms") or [])
+
+def find_user(users_doc, uid):
+    for u in users_doc.get("users", []):
+        if u.get("id") == uid:
+            return u
+    return None
+
+# Sessions are stateless: a signed cookie carrying only the user id and an
+# issue time. Permissions are re-read from users.json on every request, so
+# deactivating someone or changing their flags takes effect immediately and
+# survives a service restart -- no in-memory session table to go stale.
+def issue_session(uid):
+    body = _b64(json.dumps({"u": uid, "iat": int(time.time())},
+                           separators=(",", ":")).encode())
+    sig = _b64(hmac.new(session_key(), body.encode(), hashlib.sha256).digest())
+    return body + "." + sig
+
+def read_session(token):
+    if not token or "." not in token:
+        return None
+    body, _, sig = token.partition(".")
+    expect = _b64(hmac.new(session_key(), body.encode(), hashlib.sha256).digest())
+    if not hmac.compare_digest(sig, expect):      # verify before trusting a field
+        return None
+    try:
+        data = json.loads(_unb64(body))
+        iat = int(data["iat"])
+    except Exception:
+        return None
+    if time.time() - iat > SESSION_TTL:
+        return None
+    return data
+
+def session_cookie(token=None):
+    if token is None:
+        return "session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0"
+    return (f"session={token}; Path=/; HttpOnly; SameSite=Lax; Secure; "
+            f"Max-Age={SESSION_TTL}")
+
+def _locked(entry, now):
+    return bool(entry) and float(entry.get("locked_until") or 0) > now
+
+def _note_failure(entry, now):
+    """Bump a failure counter and lock it once MAX_FAILS is reached."""
+    entry["failed"] = int(entry.get("failed", 0)) + 1
+    if entry["failed"] >= MAX_FAILS:
+        entry["locked_until"] = now + LOCKOUT_SECS
+        entry["failed"] = 0
+    return entry
+
+def authenticate(badge_id, pin, ip):
+    """Returns the user record on success, None on any failure.
+
+    Callers must not distinguish the failure reasons to the client: unknown
+    badge, wrong PIN, locked out and deactivated all look identical from
+    outside, so the endpoint cannot be used to enumerate valid badge numbers.
+    """
+    now = time.time()
+    with _fail_lock:
+        ipf = IP_FAILS.setdefault(ip, {"failed": 0, "locked_until": 0})
+        if _locked(ipf, now):
+            return None
+        users = load_users()
+        user  = find_user(users, badge_id) if RE_BADGE.match(badge_id or "") else None
+        ok = False
+        if user is not None and user.get("active", True) and not _locked(user, now):
+            ok = verify_pin(pin, user.get("pin"))
+        if not ok:
+            _note_failure(ipf, now)
+            if user is not None:
+                _note_failure(user, now)   # per-badge lockout, survives restart
+                save_users(users)
+            return None
+        IP_FAILS.pop(ip, None)
+        user["failed"] = 0
+        user["locked_until"] = None
+        user["last_login"] = now_iso()
+        save_users(users)
+        return user
 
 CTYPES = {"html":"text/html","json":"application/json","js":"text/javascript",
           "css":"text/css","jpg":"image/jpeg","jpeg":"image/jpeg",
@@ -198,24 +335,29 @@ class H(BaseHTTPRequestHandler):
         c = SimpleCookie(); c.load(raw)
         return c[name].value if name in c else None
 
-    def _session(self):
-        tok = self._cookie("session")
-        if not tok: return None
-        s = SESSIONS.get(tok)
-        if not s: return None
-        if time.time() - s["created"] > SESSION_TTL:
-            SESSIONS.pop(tok, None)
+    def _user(self):
+        """The logged-in user record, re-read from users.json every request."""
+        data = read_session(self._cookie("session"))
+        if not data:
             return None
-        return s
+        u = find_user(load_users(), data.get("u"))
+        if not u or not u.get("active", True):
+            return None
+        return u
 
     def do_GET(self):
         path = urlparse(self.path).path
-        if path == "/api/session":
-            s = self._session()
-            if s: return self._json({"authenticated": True, "name": s["name"], "role": s["role"]})
+        if path in ("/api/me", "/api/session"):
+            # Only ever the caller's own record -- never other users, never
+            # the permission catalog, never any PIN material.
+            u = self._user()
+            if u:
+                return self._json({"authenticated": True, "id": u["id"],
+                                   "name": u.get("name", ""),
+                                   "perms": sorted(u.get("perms", []))})
             return self._json({"authenticated": False})
         if path == "/api/bins":
-            if not self._session():
+            if not self._user():
                 return self._json({"error": "unauthorized"}, 401)
             return self._json(merged())
         rel = path.lstrip("/") or "index.html"
@@ -238,45 +380,33 @@ class H(BaseHTTPRequestHandler):
             return self._json({"error": "bad json"}, 400)
 
         if path == "/api/login":
-            key = self._client_key()
-            now = time.time()
-            with _fail_lock:
-                f = FAILS.get(key)
-                if f and f["locked_until"] > now:
-                    return self._json({"ok": False, "error": "locked",
-                                        "retryAfter": int(f["locked_until"] - now)}, 429)
-            pin = str(payload.get("pin", "")).strip()
-            person = load_employees().get(pin)
-            if not person:
-                with _fail_lock:
-                    f = FAILS.setdefault(key, {"count": 0, "locked_until": 0})
-                    f["count"] += 1
-                    if f["count"] >= MAX_FAILS:
-                        f["locked_until"] = now + LOCKOUT_SECS
-                        f["count"] = 0
-                return self._json({"ok": False, "error": "invalid pin"}, 401)
-            with _fail_lock:
-                FAILS.pop(key, None)
-            token = secrets.token_urlsafe(32)
-            name  = person.get("name", "Employee")
-            role  = person.get("role", "editor")
-            SESSIONS[token] = {"employeeId": pin, "name": name, "role": role, "created": now}
-            cookie = f"session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={SESSION_TTL}"
-            return self._json({"ok": True, "name": name, "role": role},
-                               extra_headers={"Set-Cookie": cookie})
+            badge = str(payload.get("id", "")).strip()
+            pin   = str(payload.get("pin", "")).strip()
+            user  = authenticate(badge, pin, self._client_key())
+            if not user:
+                # One message for every failure mode. Do not add a reason, a
+                # retry-after, or a different status code here: any of those
+                # turns this endpoint into a badge-number oracle.
+                audit(None, "login_failed", badge or None, ip=self._client_key())
+                return self._json({"ok": False,
+                                   "error": "Badge number or PIN is incorrect."}, 401)
+            audit(user, "login", user["id"])
+            return self._json({"ok": True, "id": user["id"],
+                               "name": user.get("name", ""),
+                               "perms": sorted(user.get("perms", []))},
+                              extra_headers={"Set-Cookie":
+                                             session_cookie(issue_session(user["id"]))})
 
         if path == "/api/logout":
-            tok = self._cookie("session")
-            if tok: SESSIONS.pop(tok, None)
             return self._json({"ok": True},
-                               extra_headers={"Set-Cookie": "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"})
+                              extra_headers={"Set-Cookie": session_cookie(None)})
 
-        session = self._session()
+        session = self._user()
         if not session:
             return self._json({"error": "unauthorized"}, 401)
 
         if path == "/api/parts":
-            if session["role"] != "editor":
+            if not has(session, "add_parts"):
                 return self._json({"error": "forbidden"}, 403)
             pn = str(payload.get("pn", "")).strip()
             if not pn:
@@ -316,13 +446,14 @@ class H(BaseHTTPRequestHandler):
                 state = load_state()
                 state[rid] = {"boxes": boxes, "binFull": False}
                 save_state(state)
-                audit(session["employeeId"], session["name"], rid, "add_part", pn=pn, boxes=boxes)
+                audit(session, "add_part", rid, pn=pn, boxes=boxes)
                 return self._json({"ok": True, "bin": record})
 
         rid = payload.get("id")
         if not rid:
             return self._json({"error": "missing id"}, 400)
-        if path in ("/api/box", "/api/binfull") and session["role"] != "editor":
+        need = {"/api/box": "adjust_counts", "/api/binfull": "toggle_binfull"}.get(path)
+        if need and not has(session, need):
             return self._json({"error": "forbidden"}, 403)
         with _lock:
             state = load_state()
@@ -331,12 +462,12 @@ class H(BaseHTTPRequestHandler):
                 delta = int(payload.get("delta", 0))
                 before = int(entry.get("boxes", 0))
                 entry["boxes"] = max(0, before + delta)
-                audit(session["employeeId"], session["name"], rid, "box",
+                audit(session, "box", rid,
                       delta=delta, before=before, after=entry["boxes"])
             elif path == "/api/binfull":
                 before = bool(entry.get("binFull", False))
                 entry["binFull"] = bool(payload.get("value"))
-                audit(session["employeeId"], session["name"], rid, "binfull",
+                audit(session, "binfull", rid,
                       before=before, after=entry["binFull"])
             else:
                 return self._json({"error": "unknown endpoint"}, 404)
