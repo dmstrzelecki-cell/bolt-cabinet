@@ -1,7 +1,12 @@
 state.json
 employees.json
 additions.json
+overrides.json
+users.json
 audit.log
+.env
+backups/
+*.bak
 __pycache__/
 *.pyc
 .DS_Store

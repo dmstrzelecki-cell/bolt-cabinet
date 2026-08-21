@@ -23,14 +23,79 @@ from http.cookies import SimpleCookie
 from urllib.parse import urlparse
 
 ROOT      = os.path.dirname(os.path.abspath(__file__))
-PUBLIC    = os.path.normpath(os.path.join(ROOT, "..", "public"))
+APPDIR    = os.path.normpath(os.path.join(ROOT, ".."))
+PUBLIC    = os.path.join(APPDIR, "public")
 BINS      = os.path.join(PUBLIC, "bins.json")
-STATE     = os.path.normpath(os.path.join(ROOT, "..", "state.json"))
-EMPLOYEES = os.path.normpath(os.path.join(ROOT, "..", "employees.json"))
-ADDITIONS = os.path.normpath(os.path.join(ROOT, "..", "additions.json"))
-AUDIT     = os.path.normpath(os.path.join(ROOT, "..", "audit.log"))
+STATE     = os.path.join(APPDIR, "state.json")
+ADDITIONS = os.path.join(APPDIR, "additions.json")
+OVERRIDES = os.path.join(APPDIR, "overrides.json")
+USERS     = os.path.join(APPDIR, "users.json")
+EMPLOYEES = os.path.join(APPDIR, "employees.json")   # legacy, retired in Stage 2
+AUDIT     = os.path.join(APPDIR, "audit.log")
+ENVFILE   = os.path.join(APPDIR, ".env")
+BACKUPS   = os.path.join(APPDIR, "backups")
 PORT      = int(os.environ.get("PORT", "8080"))
 _lock     = threading.Lock()
+
+# ---------------------------------------------------------------- .env -----
+# Secrets live in a gitignored ../.env generated on the container (see README).
+# Nothing in here is ever logged, echoed, or returned to a client.
+def load_env(path=ENVFILE):
+    env = {}
+    if not os.path.exists(path):
+        return env
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+ENV = load_env()
+
+def session_key():
+    """Raise loudly rather than silently signing sessions with a guessable key."""
+    key = os.environ.get("BOLT_SESSION_KEY") or ENV.get("BOLT_SESSION_KEY")
+    if not key:
+        raise SystemExit(f"""FATAL: BOLT_SESSION_KEY is not set -- sessions cannot be signed.
+  Generate one on this machine and write it to {ENVFILE}:
+    python3 -c 'import secrets;print("BOLT_SESSION_KEY="+secrets.token_urlsafe(48))'
+  then chmod 600 that file. See README.
+  Never commit it, print it, or paste its contents anywhere.""")
+    return key.encode()
+
+# ----------------------------------------------------------- json store ----
+def write_json(path, obj, mode=None):
+    """Atomic write: full temp file, fsync, then rename over the target, so a
+    crash or a yanked power cord mid-write can never leave a truncated file."""
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(obj, f, indent=1)
+        f.flush()
+        os.fsync(f.fileno())
+    if mode is not None:
+        os.chmod(tmp, mode)
+    os.replace(tmp, path)
+
+def read_json(path, default):
+    if not os.path.exists(path):
+        return default
+    with open(path) as f:
+        return json.load(f)
+
+def load_users():
+    return read_json(USERS, {"version": 1, "users": []})
+
+def save_users(doc):
+    write_json(USERS, doc, mode=0o600)   # PIN hashes -- owner-only
+
+def load_overrides():
+    return read_json(OVERRIDES, {"version": 1, "overrides": {}})
+
+def save_overrides(doc):
+    write_json(OVERRIDES, doc)
 
 def audit(employee_id, name, bin_id, action, **fields):
     entry = {"ts": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
@@ -59,23 +124,17 @@ def load_bins():
     with open(BINS) as f: return json.load(f)
 
 def load_additions():
-    if not os.path.exists(ADDITIONS):
-        return []
-    with open(ADDITIONS) as f: return json.load(f)
+    return read_json(ADDITIONS, [])
 
 def save_additions(items):
-    tmp = ADDITIONS + ".tmp"
-    with open(tmp, "w") as f: json.dump(items, f, indent=1)
-    os.replace(tmp, ADDITIONS)
+    write_json(ADDITIONS, items)
 
 def save_state(state):
-    tmp = STATE + ".tmp"
-    with open(tmp, "w") as f: json.dump(state, f, indent=1)
-    os.replace(tmp, STATE)          # atomic write
+    write_json(STATE, state)
 
 def load_state():
     if os.path.exists(STATE):
-        with open(STATE) as f: return json.load(f)
+        return read_json(STATE, {})
     state = {}                       # first run: seed from curated bins.json
     for r in load_bins()["bins"]:
         if r.get("boxes") is not None or r.get("binFull") is not None:
