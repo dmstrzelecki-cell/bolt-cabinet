@@ -159,7 +159,7 @@ PERMS = {
     "toggle_binfull":  "the Bin-full toggle",
     "edit_bins":      "change bin location / cabinet / part number on an entry",
     "add_parts":      "create a new entry, including NB-<last4> back stock",
-    "manage_users":   "add/deactivate users, set permissions, reset PINs",
+    "manage_users":   "add/deactivate users, set permissions, reset PINs, unlock",
 }
 
 # Every mutating route must appear here. A route with no entry is refused
@@ -239,7 +239,9 @@ def find_user(users_doc, uid):
 def public_user(u):
     """A user record safe to hand to a manage_users holder: everything except
     the PIN hash, salt and scrypt parameters."""
-    return {k: v for k, v in u.items() if k != "pin"}
+    out = {k: v for k, v in u.items() if k != "pin"}
+    out["locked"] = _locked(u, time.time())
+    return out
 
 def clean_perms(raw):
     """Returns (perms, error). Unknown flags are rejected outright rather than
@@ -324,25 +326,53 @@ def authenticate(badge_id, pin, ip):
     now = time.time()
     with _fail_lock:
         ipf = IP_FAILS.setdefault(ip, {"failed": 0, "locked_until": 0})
-        if _locked(ipf, now):
-            return None
+        ip_locked = _locked(ipf, now)
         users = load_users()
         user  = find_user(users, badge_id) if RE_BADGE.match(badge_id or "") else None
         ok = False
         if user is not None and user.get("active", True) and not _locked(user, now):
             ok = verify_pin(pin, user.get("pin"))
+        is_super = ok and "manage_users" in (user.get("perms") or [])
+
+        # A super-user is never shut out by an IP lockout.
+        #
+        # The whole shop reaches this app through one Cloudflare-forwarded
+        # address, so a single person fumbling their PIN five times locks
+        # that address for everybody -- including the only people who can
+        # clear it. So: correct credentials plus manage_users plus an
+        # unlocked badge gets through an IP lock, and succeeding clears the
+        # lock for everyone else too (see IP_FAILS.pop below). That is the
+        # intended "let me back in and unlock the shop" path.
+        #
+        # Their own per-badge lockout still applies -- clear that from the
+        # admin panel's Unlock button, or `adminctl.py unlock <badge>`.
+        if ip_locked and not is_super:
+            if not ok:
+                # Re-arm the IP lock so hammering during a lock buys nothing,
+                # but deliberately do NOT count this against the badge:
+                # otherwise someone who locked the shared IP could go on to
+                # lock out every badge in the shop one after another.
+                ipf["locked_until"] = now + LOCKOUT_SECS
+            return None
+
         if not ok:
             _note_failure(ipf, now)
             if user is not None:
                 _note_failure(user, now)   # per-badge lockout, survives restart
                 save_users(users)
             return None
-        IP_FAILS.pop(ip, None)
+        IP_FAILS.pop(ip, None)             # a good login clears the IP lock
         user["failed"] = 0
         user["locked_until"] = None
         user["last_login"] = now_iso()
         save_users(users)
         return user
+
+def clear_ip_locks():
+    """Drop every IP lockout. Behind the shared shop address there is really
+    only one, and clearing it is the point of the admin Unlock action."""
+    with _fail_lock:
+        IP_FAILS.clear()
 
 CTYPES = {"html":"text/html","json":"application/json","js":"text/javascript",
           "css":"text/css","jpg":"image/jpeg","jpeg":"image/jpeg",
@@ -764,6 +794,18 @@ class H(BaseHTTPRequestHandler):
                                  "active": target.get("active", True)})
                     return self._json({"ok": True, "user": public_user(target)})
 
+                if action == "unlock":
+                    before = {"failed": target.get("failed", 0),
+                              "locked_until": target.get("locked_until")}
+                    target["failed"] = 0
+                    target["locked_until"] = None
+                    save_users(users)
+                    # Also drop IP lockouts: the shared shop address is the
+                    # usual reason anyone is locked out in the first place.
+                    clear_ip_locks()
+                    audit(session, "user_unlock", uid, before=before)
+                    return self._json({"ok": True, "user": public_user(target)})
+
                 if action in ("deactivate", "delete"):
                     if uid == session["id"]:
                         return self._json({"error": "You cannot deactivate or delete your "
@@ -784,7 +826,7 @@ class H(BaseHTTPRequestHandler):
                     return self._json({"ok": True})
 
                 return self._json({"error": "action must be create, update, "
-                                            "deactivate or delete"}, 400)
+                                            "unlock, deactivate or delete"}, 400)
 
         if path == "/api/admin/users/pin":
             uid = str(payload.get("id") or "").strip()

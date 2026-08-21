@@ -119,6 +119,9 @@
   .user-row .un b{display:block;font-size:13px}
   .user-row .un span{font-size:11px;color:var(--dim);word-break:break-all}
   .user-row.off .un b{color:var(--dim);text-decoration:line-through}
+  .lockpill{font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 6px;border-radius:6px;
+    background:#3a1420;color:#ff9bb2;border:1px solid #5c2333;vertical-align:middle}
+  .ebtn.unlock{color:#ffcf70;border-color:var(--cabA-line)}
   .admin-sec{margin-top:18px;padding-top:6px;border-top:1px solid var(--line)}
   .admin-sec h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 2px}
   .modal-ok{min-height:18px;margin-top:10px;font-size:12px;color:var(--box);text-align:center}
@@ -577,8 +580,15 @@
       (d.users||[]).forEach(function(u){
         var row=document.createElement('div');
         row.className='user-row'+(u.active===false?' off':'');
-        row.innerHTML='<div class="un"><b>'+esc(u.name)+'</b><span>'+esc(u.id)+' · '+
-          esc((u.perms||[]).join(', ')||'no access')+'</span></div>';
+        row.innerHTML='<div class="un"><b>'+esc(u.name)+
+          (u.locked?' <span class="lockpill">LOCKED</span>':'')+'</b><span>'+
+          esc(u.id)+' · '+esc((u.perms||[]).join(', ')||'no access')+'</span></div>';
+        if(u.locked){
+          var unl=document.createElement('button'); unl.className='ebtn unlock';
+          unl.textContent='Unlock';
+          unl.addEventListener('click',function(){ adPost({action:'unlock', id:u.id}); });
+          row.appendChild(unl);
+        }
         var edit=document.createElement('button'); edit.className='ebtn'; edit.textContent='Edit';
         edit.addEventListener('click',function(){
           adEditing=u.id; adFormTitle.textContent='Editing '+u.name;

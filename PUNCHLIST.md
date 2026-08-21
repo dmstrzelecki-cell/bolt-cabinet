@@ -12,18 +12,21 @@
   confirmed still shows "Verify". Clearing it on edit was not specified, so
   it was not done. Worth deciding — most of the low-confidence list below
   would clear itself through normal use.
-- **Shared-IP lockout.** Per handoff §2.5 the 5-failure lock applies per
-  badge *and* per source IP. Everyone in the shop reaches the app through
-  one Cloudflare-forwarded address, so one tech fumbling their PIN five
-  times locks out **everyone at that IP** for 15 minutes. Implemented as
-  specified. If that bites, the fix is a higher threshold on the IP counter
-  than on the badge counter.
 - **Freed bin, taken id.** Record ids are `<cab>-<bin>` and are never
   re-keyed, so if a part is edited *out* of CA-L3, the physical bin is free
   but a new part can't be added there — the id `A-L3` is still taken by the
   moved record. Rare, and 409s cleanly with an explanatory message rather
   than corrupting anything. Fix would be an id suffix scheme; not invented
   here.
+
+## Resolved
+- **Shared-IP lockout no longer strands the shop.** Everyone reaches the app
+  through one Cloudflare-forwarded address, so five bad attempts used to lock
+  out every user — including the only people who could clear it. A super-user
+  with correct credentials now logs in *through* an IP lock and clears it for
+  everyone; `manage_users` holders get an **Unlock** button per user, and
+  `adminctl.py unlock <badge>` works from the console. A super-user's own
+  badge lock still applies, so the admin badge is not a brute-force free pass.
 
 ## Carried-forward risks
 - **Git credentials for the container.** Nobody has written down what happens

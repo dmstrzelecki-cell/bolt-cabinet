@@ -8,6 +8,7 @@ Run on the container, from the Proxmox console or `pct enter`:
     python3 server/adminctl.py list-users
     python3 server/adminctl.py set-perms <id>
     python3 server/adminctl.py deactivate <id>  reversible; prefer over delete
+    python3 server/adminctl.py unlock <id>       clear a lockout, PIN unchanged
     python3 server/adminctl.py reset-pin <id>
     python3 server/adminctl.py backup
     python3 server/adminctl.py list-backups
@@ -186,6 +187,22 @@ def cmd_deactivate(argv):
     print(f"{u.get('name')} ({u['id']}) deactivated. Their audit history is kept.")
 
 
+def cmd_unlock(argv):
+    """Clear a badge lockout without changing anyone's PIN."""
+    if not argv:
+        die("usage: unlock <badge>")
+    doc = load_or_die()
+    u = get_user(doc, argv[0])
+    before = {"failed": u.get("failed", 0), "locked_until": u.get("locked_until")}
+    u["failed"] = 0
+    u["locked_until"] = None
+    S.save_users(doc)
+    cli_audit("user_unlock", u["id"], before=before)
+    print(f"{u.get('name')} ({u['id']}) unlocked. Their PIN is unchanged.")
+    print("Note: IP lockouts live in memory -- `systemctl restart bolt-cabinet`")
+    print("      clears those, or just log in once as a super-user.")
+
+
 def cmd_reset_pin(argv):
     if not argv:
         die("usage: reset-pin <badge>")
@@ -325,6 +342,7 @@ def cmd_export(argv):
 COMMANDS = {
     "bootstrap": cmd_bootstrap, "add-user": cmd_add_user, "list-users": cmd_list_users,
     "set-perms": cmd_set_perms, "deactivate": cmd_deactivate, "reset-pin": cmd_reset_pin,
+    "unlock": cmd_unlock,
     "backup": cmd_backup, "list-backups": cmd_list_backups, "restore": cmd_restore,
     "export": cmd_export,
 }

@@ -89,7 +89,7 @@ the set is an edit there plus `ROUTE_PERMS` and the UI's chip labels.
 | `toggle_binfull` | the Bin-full toggle |
 | `edit_bins` | change bin / cabinet / part number on an existing entry |
 | `add_parts` | create a new entry, including `NB-<last4>` back stock |
-| `manage_users` | add/deactivate users, set permissions, reset PINs |
+| `manage_users` | add/deactivate users, set permissions, reset PINs, clear lockouts |
 
 A **super-user** is simply a holder of `manage_users`. It implies nothing
 else — grant every flag explicitly.
@@ -108,6 +108,20 @@ else — grant every flag explicitly.
   `users.json` so a restart can't clear it; a parallel in-memory counter
   locks the source IP. The rate-limit key prefers `CF-Connecting-IP`, since
   tunnel traffic otherwise all arrives from one local address.
+- **A super-user is never shut out by an IP lockout.** The whole shop shares
+  one Cloudflare-forwarded address, so one person fumbling five times would
+  otherwise lock out everybody — including the only people who could clear
+  it. Correct credentials + `manage_users` + an unlocked badge gets through
+  an IP lock, and **succeeding clears that lock for everyone**.
+- A super-user's *own badge* lockout still applies — no free pass for
+  brute-forcing the admin badge. Clear it from the console with
+  `adminctl.py unlock <badge>`.
+- Failures that arrive while an IP is already locked re-arm the IP lock but
+  are deliberately **not** counted against the badge, so an attacker can't
+  lock the shared IP and then walk every badge in the shop into a lockout.
+- `POST /api/admin/users {action:"unlock", id}` clears a badge lockout
+  without touching the PIN, and drops IP locks at the same time. The admin
+  panel shows a `LOCKED` pill and an Unlock button on affected rows.
 - Login returns **one identical message and status** for unknown badge,
   wrong PIN, locked, and deactivated. Do not add a reason, a `retryAfter`,
   or a distinct status code — that turns the endpoint into a badge oracle.

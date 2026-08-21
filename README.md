@@ -18,14 +18,23 @@ What you can do depends on the permissions you were given:
 | The Bin-full toggle | `toggle_binfull` |
 | **Edit** a bin location or part number | `edit_bins` |
 | **+ Add new part** | `add_parts` |
-| **Manage users** | `manage_users` |
+| **Manage users**, unlock people | `manage_users` |
 
 Controls you don't have simply aren't shown. Sessions last 12 hours; after
 that you'll be asked to log in again and your search is kept.
 
 **Five wrong tries locks your badge for 15 minutes.** The message is the same
-whatever went wrong, on purpose — ask someone with `manage_users` to reset
-your PIN, which also clears the lock.
+whatever went wrong, on purpose. Ask someone with `manage_users` to hit
+**Unlock** next to your name — that clears the lock without changing your PIN.
+
+Because the whole shop shares one address, a run of bad attempts can lock
+*everyone* out for 15 minutes. A super-user is exempt: log in normally and
+that clears the lock for the rest of the shop as well. If your own badge is
+also locked, clear it from the container console:
+
+```bash
+python3 /opt/bolt-cabinet/server/adminctl.py unlock <badge>
+```
 
 > Login requires HTTPS, so use the address above. Browsing directly to
 > `http://192.168.0.126:8080` on the shop LAN will show the page but cannot
