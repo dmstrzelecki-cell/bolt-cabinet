@@ -165,8 +165,10 @@ systemctl restart bolt-cabinet
 ```
 
 Sanity check from inside the container. **401 is the correct answer** — it
-means the auth gate is working:
+means the auth gate is working. There is no `curl` in CT 300, hence `python3`:
 
 ```bash
-curl -sS -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/bins
+python3 -c "import urllib.request,urllib.error;
+try: print(urllib.request.urlopen('http://localhost:8080/api/bins',timeout=5).status)
+except urllib.error.HTTPError as e: print(e.code)"
 ```
