@@ -1,10 +1,18 @@
 # Punch list
 
 ## Deploy record
-- **Known-good SHA before the auth/editing work:** `0141340`
-  (`Show numeric keypad on mobile for part number search`).
-  Roll back with `git -C /opt/bolt-cabinet reset --hard 0141340 && systemctl restart bolt-cabinet`.
-- Record the new known-good SHA here once §9.3 verification passes.
+- **Current known-good SHA: `41686c3`** — deployed to CT 300 on 2026-08-20,
+  verified live: auth gate returns 401 unauthenticated, super-user login
+  succeeds, `/api/bins` serves 242 records (240 seed + 2 live additions) with
+  51 live box counts intact.
+- **Previous known-good (pre-auth): `0141340`.** Roll back with
+  `git -C /opt/bolt-cabinet reset --hard 0141340 && systemctl restart bolt-cabinet`
+  — note that the old code needs `employees.json`, which now exists **only**
+  in `/root/bolt-cabinet-preauth-20260821T023904Z/` on the container.
+- Pre-migration snapshot of all live data (state, additions, audit,
+  employees) is in that same `/root/bolt-cabinet-preauth-*/` directory,
+  checksum-verified at the time it was taken.
+- Daily backup timer `bolt-cabinet-backup.timer` is installed and enabled.
 
 ## Open decisions (need David)
 - **`verify: true` after an edit.** An `edit_bins` correction currently
