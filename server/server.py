@@ -305,18 +305,69 @@ def load_state():
                               "binFull": bool(r.get("binFull", False))}
     save_state(state); return state
 
+OVERRIDABLE = ("cab", "bin", "row", "col", "pn", "zone")
+
+def with_overrides():
+    """bins.json + additions.json, with overrides.json layered on top.
+
+    Only the fields actually present in an override are applied; everything
+    else falls through to the seed record. Records are copied first so the
+    seed data on disk is never mutated in memory.
+    """
+    ov   = load_overrides().get("overrides", {})
+    recs = [dict(r) for r in load_bins()["bins"]] + [dict(r) for r in load_additions()]
+    for r in recs:
+        o = ov.get(r.get("id"))
+        if not o:
+            continue
+        for k in OVERRIDABLE:
+            if k in o:
+                r[k] = o[k]
+        if o.get("note"):
+            r["editNote"] = o["note"]        # distinct from the curated boxNote
+        r["editedBy"] = o.get("edited_by")
+        r["editedAt"] = o.get("edited_at")
+    return recs
+
 def merged():
-    data = load_bins(); state = load_state()
-    bins = list(data["bins"]) + load_additions()
-    for r in bins:
+    """Serve order: bins.json -> overrides.json -> live counts from state.json."""
+    state = load_state()
+    recs  = with_overrides()
+    for r in recs:
         s = state.get(r["id"])
         if s:
             r["boxes"]   = s.get("boxes", r.get("boxes", 0))
             r["binFull"] = s.get("binFull", r.get("binFull", False))
-    return {"version": data["version"], "count": len(bins), "bins": bins}
+    return {"version": load_bins()["version"], "count": len(recs), "bins": recs}
 
 def all_ids():
     return {r["id"] for r in load_bins()["bins"]} | {r["id"] for r in load_additions()}
+
+def bin_taken_by(cab, bin_code, ignore_id=None):
+    """Which record id currently occupies this cabinet+bin, post-override.
+
+    Checked against the *live* view, not the seed, so a bin freed up by an
+    earlier edit is reusable and a bin an edit moved into is protected.
+    """
+    for r in with_overrides():
+        if r.get("id") == ignore_id or r.get("cab") == "?":
+            continue
+        if r.get("cab") == cab and str(r.get("bin", "")).upper() == bin_code:
+            return r["id"]
+    return None
+
+# No client string is trusted. Everything that reaches a record goes through
+# one of these first; anything that doesn't match is a 400.
+RE_PN   = re.compile(r"^[0-9A-Za-z][0-9A-Za-z./-]{1,31}$")
+RE_BIN  = re.compile(r"^(?:[A-Z]{1,2}[0-9]{1,2}|[0-9]{1,2}-[0-9]{1,2})$")
+RE_ID   = re.compile(r"^(?:[AB]-[A-Z0-9-]{1,6}|NB-[0-9A-Za-z]{1,8})$")
+NOTE_MAX = 120
+
+def clean_note(raw):
+    """Strip control characters and cap the length. Notes are shown verbatim
+    in the UI, which escapes them, but keep the stored value tidy regardless."""
+    txt = "".join(c for c in str(raw or "") if c.isprintable()).strip()
+    return txt[:NOTE_MAX]
 
 # Mirrors the physical addressing scheme in CLAUDE.md.
 def parse_bin_code(code):
@@ -456,8 +507,9 @@ class H(BaseHTTPRequestHandler):
 
         if path in ("/api/bins/add", "/api/parts"):
             pn = str(payload.get("pn", "")).strip()
-            if not pn:
-                return self._json({"error": "part number required"}, 400)
+            if not RE_PN.match(pn):
+                return self._json({"error": "Part number must be 2-32 letters, digits, "
+                                            ". - or /"}, 400)
             cab = str(payload.get("cab") or "").strip().upper()
             bin_code = str(payload.get("bin") or "").strip().upper()
             try:
@@ -469,12 +521,16 @@ class H(BaseHTTPRequestHandler):
                 if bin_code:
                     if cab not in ("A", "B"):
                         return self._json({"error": "pick a cabinet for that bin"}, 400)
+                    if not RE_BIN.match(bin_code):
+                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — use e.g. N9 or 6-5"}, 400)
                     row, col = parse_bin_code(bin_code)
                     if row is None:
                         return self._json({"error": f"couldn't parse bin \"{bin_code}\" — use e.g. N9 or 6-5"}, 400)
                     rid = f"{cab}-{bin_code}"
-                    if rid in all_ids():
-                        return self._json({"error": f"bin {cab}-{bin_code} is already assigned"}, 409)
+                    holder = bin_taken_by(cab, bin_code)
+                    if rid in all_ids() or holder:
+                        return self._json({"error": f"bin C{cab}-{bin_code} is already assigned"
+                                                    f" (record {holder or rid})"}, 409)
                     record = {"cab": cab, "bin": bin_code, "row": row, "col": col, "pn": pn,
                               "zone": compute_zone(cab, row), "verify": False,
                               "boxes": boxes, "binFull": False, "id": rid}
@@ -493,8 +549,78 @@ class H(BaseHTTPRequestHandler):
                 state = load_state()
                 state[rid] = {"boxes": boxes, "binFull": False}
                 save_state(state)
-                audit(session, "add_part", rid, pn=pn, boxes=boxes)
+                audit(session, "add_part", rid, pn=pn, boxes=boxes,
+                      cab=record["cab"], bin=record["bin"])
                 return self._json({"ok": True, "bin": record})
+
+        if path == "/api/bins/edit":
+            rid = str(payload.get("id") or "").strip()
+            if not RE_ID.match(rid):
+                return self._json({"error": "bad record id"}, 400)
+            want_cab  = payload.get("cab")
+            want_bin  = payload.get("bin")
+            want_pn   = payload.get("pn")
+            note      = clean_note(payload.get("note"))
+            if want_cab is None and want_bin is None and want_pn is None:
+                return self._json({"error": "nothing to change"}, 400)
+
+            with _lock:
+                live = {r["id"]: r for r in with_overrides()}
+                cur  = live.get(rid)
+                if not cur:
+                    return self._json({"error": "no such record"}, 404)
+
+                patch = {}
+                if want_pn is not None:
+                    pn = str(want_pn).strip()
+                    if not RE_PN.match(pn):
+                        return self._json({"error": "Part number must be 2-32 letters, "
+                                                    "digits, . - or /"}, 400)
+                    patch["pn"] = pn
+
+                # cab and bin move together: a bin code means nothing without
+                # the cabinet it lives in.
+                if want_cab is not None or want_bin is not None:
+                    cab = str(want_cab if want_cab is not None else cur.get("cab") or "").strip().upper()
+                    bin_code = str(want_bin if want_bin is not None else cur.get("bin") or "").strip().upper()
+                    if cab not in ("A", "B"):
+                        return self._json({"error": "pick cabinet A or B"}, 400)
+                    if not RE_BIN.match(bin_code):
+                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — "
+                                                     "use e.g. N9 or 6-5"}, 400)
+                    row, col = parse_bin_code(bin_code)
+                    if row is None:
+                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — "
+                                                     "use e.g. N9 or 6-5"}, 400)
+                    holder = bin_taken_by(cab, bin_code, ignore_id=rid)
+                    if holder:
+                        other = live.get(holder, {})
+                        return self._json({"error": f"C{cab}-{bin_code} already holds "
+                                                    f"{other.get('pn', holder)}. Move or fix that "
+                                                    "entry first."}, 409)
+                    # row/col/zone are always derived here, never taken from
+                    # the client (handoff 5.1).
+                    patch.update({"cab": cab, "bin": bin_code, "row": row, "col": col,
+                                  "zone": compute_zone(cab, row)})
+
+                before = {k: cur.get(k) for k in patch}
+                doc = load_overrides()
+                entry = doc.setdefault("overrides", {}).setdefault(rid, {})
+                entry.update(patch)
+                if note:
+                    entry["note"] = note
+                entry["edited_by"] = session["id"]
+                entry["edited_at"] = now_iso()
+                # The record id is NOT re-keyed when cab/bin change. It stays
+                # the original stable key forever: it is only an identifier,
+                # and state.json counts plus this override map are both keyed
+                # off it. Re-keying would orphan a bin's box count. Do not
+                # "fix" this later.
+                save_overrides(doc)
+                audit(session, "edit_bin", rid, before=before, after=patch,
+                      note=note or None)
+                merged_rec = {r["id"]: r for r in merged()["bins"]}.get(rid)
+                return self._json({"ok": True, "bin": merged_rec})
 
         rid = payload.get("id")
         if not rid:
