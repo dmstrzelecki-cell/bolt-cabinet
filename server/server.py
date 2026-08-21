@@ -25,7 +25,7 @@ a dirty working tree would make `git pull --ff-only` fail on the container
 and block every future deploy. merged() layers overrides and counts on top
 of it at serve time instead.
 """
-import json, os, re, threading, secrets, time, datetime, hashlib, hmac, base64
+import json, os, re, shutil, threading, secrets, time, datetime, hashlib, hmac, base64
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import SimpleCookie
 from urllib.parse import urlparse
@@ -106,6 +106,34 @@ def save_overrides(doc):
 
 def now_iso():
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+
+# -------------------------------------------------------------- backups ----
+KEEP_BACKUPS = 14
+
+def prune_backups(keep=KEEP_BACKUPS):
+    if not os.path.isdir(BACKUPS):
+        return
+    dirs = sorted(d for d in os.listdir(BACKUPS)
+                  if os.path.isdir(os.path.join(BACKUPS, d)))
+    for d in dirs[:-keep] if keep else dirs:
+        shutil.rmtree(os.path.join(BACKUPS, d), ignore_errors=True)
+
+def make_backup(reason="manual"):
+    """Timestamped copy of every live file that has no git safety net.
+
+    Called by the daily timer, and automatically immediately before any
+    destructive admin action (handoff 6). Returns the directory it wrote.
+    """
+    ts   = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dest = os.path.join(BACKUPS, ts)
+    os.makedirs(dest, exist_ok=True)
+    for src in (USERS, STATE, OVERRIDES, ADDITIONS, AUDIT):
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(dest, os.path.basename(src)))
+    os.chmod(dest, 0o700)                 # copies include users.json
+    write_json(os.path.join(dest, "reason.json"), {"reason": reason, "ts": now_iso()})
+    prune_backups()
+    return dest
 
 def audit(user, action, target_id=None, **fields):
     """Append-only attribution log. One JSON object per line. Never contains
@@ -205,6 +233,41 @@ def find_user(users_doc, uid):
         if u.get("id") == uid:
             return u
     return None
+
+def public_user(u):
+    """A user record safe to hand to a manage_users holder: everything except
+    the PIN hash, salt and scrypt parameters."""
+    return {k: v for k, v in u.items() if k != "pin"}
+
+def clean_perms(raw):
+    """Returns (perms, error). Unknown flags are rejected outright rather than
+    silently dropped, so a typo in an admin call can't quietly grant nothing."""
+    if not isinstance(raw, list):
+        return None, "perms must be a list"
+    perms = sorted({str(p) for p in raw})
+    unknown = [p for p in perms if p not in PERMS]
+    if unknown:
+        return None, "unknown permission: " + ", ".join(unknown)
+    return perms, None
+
+def admins_left(users_doc, without_id=None, as_perms=None):
+    """How many active users would still hold manage_users after a change."""
+    n = 0
+    for u in users_doc.get("users", []):
+        perms  = u.get("perms") or []
+        active = u.get("active", True)
+        if u.get("id") == without_id:
+            if as_perms is None:
+                continue                       # being deactivated or deleted
+            perms = as_perms
+        if active and "manage_users" in perms:
+            n += 1
+    return n
+
+def new_user_record(uid, name, pin, perms):
+    return {"id": uid, "name": name, "pin": hash_pin(pin), "perms": perms,
+            "active": True, "created": now_iso(), "last_login": None,
+            "failed": 0, "locked_until": None}
 
 # Sessions are stateless: a signed cookie carrying only the user id and an
 # issue time. Permissions are re-read from users.json on every request, so
@@ -460,6 +523,14 @@ class H(BaseHTTPRequestHandler):
             if not self._require("/api/bins"):
                 return
             return self._json(merged())
+        if path == "/api/admin/users":
+            if not self._require("/api/admin/users"):
+                return
+            # PIN material is stripped by public_user(). The flag catalog is
+            # included because only a manage_users holder can reach this.
+            return self._json({"users": [public_user(u) for u in
+                                         load_users().get("users", [])],
+                               "perms": PERMS})
         rel = path.lstrip("/") or "index.html"
         fp  = os.path.normpath(os.path.join(PUBLIC, rel))
         if not fp.startswith(PUBLIC) or not os.path.isfile(fp):
@@ -621,6 +692,118 @@ class H(BaseHTTPRequestHandler):
                       note=note or None)
                 merged_rec = {r["id"]: r for r in merged()["bins"]}.get(rid)
                 return self._json({"ok": True, "bin": merged_rec})
+
+        if path == "/api/admin/users":
+            action = str(payload.get("action") or "").strip().lower()
+            uid    = str(payload.get("id") or "").strip()
+            if not RE_BADGE.match(uid):
+                return self._json({"error": "Badge number must be 1-12 digits."}, 400)
+
+            with _lock:
+                users = load_users()
+                target = find_user(users, uid)
+
+                if action == "create":
+                    if target:
+                        return self._json({"error": f"Badge {uid} already exists."}, 409)
+                    name = clean_note(payload.get("name"))
+                    if not name:
+                        return self._json({"error": "Name is required."}, 400)
+                    perms, err = clean_perms(payload.get("perms") or ["view"])
+                    if err:
+                        return self._json({"error": err}, 400)
+                    pin = str(payload.get("pin") or "")
+                    problem = pin_problem(pin, uid)
+                    if problem:
+                        return self._json({"error": problem}, 400)
+                    rec = new_user_record(uid, name, pin, perms)
+                    users.setdefault("users", []).append(rec)
+                    save_users(users)
+                    # perms are logged, the PIN never is
+                    audit(session, "user_create", uid, name=name, perms=perms)
+                    return self._json({"ok": True, "user": public_user(rec)})
+
+                if not target:
+                    return self._json({"error": "No such badge number."}, 404)
+
+                if action == "update":
+                    before = {"name": target.get("name"), "perms": target.get("perms"),
+                              "active": target.get("active", True)}
+                    if payload.get("name") is not None:
+                        name = clean_note(payload.get("name"))
+                        if not name:
+                            return self._json({"error": "Name is required."}, 400)
+                        target["name"] = name
+                    if payload.get("perms") is not None:
+                        perms, err = clean_perms(payload.get("perms"))
+                        if err:
+                            return self._json({"error": err}, 400)
+                        if uid == session["id"] and "manage_users" not in perms:
+                            return self._json({"error": "You cannot remove your own "
+                                                        "user-management access."}, 400)
+                        if admins_left(users, without_id=uid, as_perms=perms) == 0:
+                            return self._json({"error": "That would leave nobody able to "
+                                                        "manage users."}, 400)
+                        target["perms"] = perms
+                    if payload.get("active") is not None:
+                        want = bool(payload.get("active"))
+                        if not want:
+                            if uid == session["id"]:
+                                return self._json({"error": "You cannot deactivate your "
+                                                            "own account."}, 400)
+                            if admins_left(users, without_id=uid) == 0:
+                                return self._json({"error": "That would leave nobody able "
+                                                            "to manage users."}, 400)
+                            make_backup(f"deactivate {uid}")
+                        target["active"] = want
+                    save_users(users)
+                    audit(session, "user_update", uid, before=before,
+                          after={"name": target.get("name"), "perms": target.get("perms"),
+                                 "active": target.get("active", True)})
+                    return self._json({"ok": True, "user": public_user(target)})
+
+                if action in ("deactivate", "delete"):
+                    if uid == session["id"]:
+                        return self._json({"error": "You cannot deactivate or delete your "
+                                                    "own account."}, 400)
+                    if admins_left(users, without_id=uid) == 0:
+                        return self._json({"error": "That would leave nobody able to "
+                                                    "manage users."}, 400)
+                    make_backup(f"{action} {uid}")
+                    if action == "deactivate":
+                        # Preferred: keeps the record so audit.log attribution
+                        # still resolves to a name.
+                        target["active"] = False
+                        save_users(users)
+                    else:
+                        users["users"] = [u for u in users["users"] if u.get("id") != uid]
+                        save_users(users)
+                    audit(session, "user_" + action, uid, name=target.get("name"))
+                    return self._json({"ok": True})
+
+                return self._json({"error": "action must be create, update, "
+                                            "deactivate or delete"}, 400)
+
+        if path == "/api/admin/users/pin":
+            uid = str(payload.get("id") or "").strip()
+            pin = str(payload.get("pin") or "")
+            if not RE_BADGE.match(uid):
+                return self._json({"error": "Badge number must be 1-12 digits."}, 400)
+            problem = pin_problem(pin, uid)
+            if problem:
+                return self._json({"error": problem}, 400)
+            with _lock:
+                users  = load_users()
+                target = find_user(users, uid)
+                if not target:
+                    return self._json({"error": "No such badge number."}, 404)
+                make_backup(f"pin reset {uid}")
+                target["pin"] = hash_pin(pin)
+                target["failed"] = 0            # a reset also clears a lockout
+                target["locked_until"] = None
+                save_users(users)
+                audit(session, "user_pin_reset", uid)   # never the PIN itself
+                return self._json({"ok": True})
 
         rid = payload.get("id")
         if not rid:
