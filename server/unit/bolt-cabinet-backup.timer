@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the Bolt Cabinet backup once a day
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Bolt Cabinet Lookup - daily snapshot of live data
+After=bolt-cabinet.service
+
+[Service]
+Type=oneshot
+User=boltapp
+WorkingDirectory=/opt/bolt-cabinet
+ExecStart=/usr/bin/python3 /opt/bolt-cabinet/server/adminctl.py backup

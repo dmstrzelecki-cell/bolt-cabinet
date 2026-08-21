@@ -1,25 +1,67 @@
-# Go-live punch list
+# Punch list
 
-## Missing / empty bin positions (need a part # or confirm empty)
+## Deploy record
+- **Known-good SHA before the auth/editing work:** `0141340`
+  (`Show numeric keypad on mobile for part number search`).
+  Roll back with `git -C /opt/bolt-cabinet reset --hard 0141340 && systemctl restart bolt-cabinet`.
+- Record the new known-good SHA here once §9.3 verification passes.
+
+## Open decisions (need David)
+- **`verify: true` after an edit.** An `edit_bins` correction currently
+  leaves the `Verify` flag alone, so a bin someone just stood in front of and
+  confirmed still shows "Verify". Clearing it on edit was not specified, so
+  it was not done. Worth deciding — most of the low-confidence list below
+  would clear itself through normal use.
+- **Shared-IP lockout.** Per handoff §2.5 the 5-failure lock applies per
+  badge *and* per source IP. Everyone in the shop reaches the app through
+  one Cloudflare-forwarded address, so one tech fumbling their PIN five
+  times locks out **everyone at that IP** for 15 minutes. Implemented as
+  specified. If that bites, the fix is a higher threshold on the IP counter
+  than on the badge counter.
+- **Freed bin, taken id.** Record ids are `<cab>-<bin>` and are never
+  re-keyed, so if a part is edited *out* of CA-L3, the physical bin is free
+  but a new part can't be added there — the id `A-L3` is still taken by the
+  moved record. Rare, and 409s cleanly with an explanatory message rather
+  than corrupting anything. Fix would be an id suffix scheme; not invented
+  here.
+
+## Carried-forward risks
+- **Git credentials for the container.** Nobody has written down what happens
+  when the read-only deploy key at `/opt/bolt-cabinet/.git_deploy_key`
+  expires or is rotated. The pull works today because of how the remote is
+  configured; that is not documented anywhere.
+- **No HTTPS between Cloudflare and the origin.** Plain HTTP over the LAN.
+  Acceptable given the tunnel, but PINs now cross that hop.
+- **PIN auth on a public endpoint is modest security.** Appropriate for
+  bolt-bin data. Do not extend this auth to anything more sensitive without
+  a rethink.
+- **`employees.json` is retired.** The old scheme used the badge number *as*
+  the PIN, which the new rules reject outright, so there was no migration
+  path — every user is created fresh via `adminctl`. Delete the old file from
+  the container once the new roster is in.
+
+## Data: missing / empty bin positions (need a part # or confirm empty)
 - CB left-door numeric **5-1** (opened up when 6-1 was corrected to 11610124)
 - CA main **D2–D5**, **I2–I4**, **J4–J5**
 - CA right door **N3**
 
-## Reshoot
-- CB numeric **rows 5 & 6** — one clean straight-on shot. Row-5 reads are suspect
-  (5-2 …8744 vs confirmed 6-2 …8734). Rows 1–4 are fine.
+## Data: reshoot
+- CB numeric **rows 5 & 6** — one clean straight-on shot. Row-5 reads are
+  suspect (5-2 …8744 vs confirmed 6-2 …8734). Rows 1–4 are fine.
 
-## Back stock with no home (need full part # + a bin)
-- **…5044** — 8 boxes, no match anywhere
+## Data: back stock with no home (need full part # + a bin)
+- **…5044** — 8 boxes, no match anywhere.
+  *(Now fixable in the app: search it, hit **Edit**, set the full part number
+  and a bin. The record keeps its box count.)*
 
-## Row-width unknowns (is there one more bin on the end?)
+## Data: row-width unknowns (is there one more bin on the end?)
 - CA main **E8?**
 
-## Low-confidence reads (`verify: true`) to confirm
+## Data: low-confidence reads (`verify: true`) to confirm
 - CA: A4 "2275", C4–C8 layout, F1/K1 (dup 11603036), F5 "11605396", H6,
   I1, L3 "6583", M5 "1X530375A", S4 "9413349"
 - CB numeric 1-1…4-4 and 5-2/5-3/5-4
 - CA H1–H4 are sandpaper/foam (not fasteners) — confirm they stay unlisted
 
-## Confirm
+## Data: confirm
 - Cabinet A **D–L = main body** (currently inferred).
