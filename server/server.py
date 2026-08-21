@@ -119,6 +119,32 @@ def audit(user, action, target_id=None, **fields):
     with open(AUDIT, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
+# --------------------------------------------------------- permissions ----
+# The whole permission vocabulary lives here and nowhere else. Swapping the
+# flag set is an edit to these two tables plus the UI's own copy of the names.
+# "manage_users" implies nothing else -- every flag is granted explicitly.
+PERMS = {
+    "view":           "log in, search, see bins and counts",
+    "adjust_counts":  "+ received / - to bin",
+    "toggle_binfull":  "the Bin-full toggle",
+    "edit_bins":      "change bin location / cabinet / part number on an entry",
+    "add_parts":      "create a new entry, including NB-<last4> back stock",
+    "manage_users":   "add/deactivate users, set permissions, reset PINs",
+}
+
+# Every mutating route must appear here. A route with no entry is refused
+# outright rather than defaulting open -- see _require().
+ROUTE_PERMS = {
+    "/api/bins":            "view",
+    "/api/box":             "adjust_counts",
+    "/api/binfull":         "toggle_binfull",
+    "/api/bins/edit":       "edit_bins",
+    "/api/bins/add":        "add_parts",
+    "/api/parts":           "add_parts",     # legacy alias of /api/bins/add
+    "/api/admin/users":     "manage_users",
+    "/api/admin/users/pin": "manage_users",
+}
+
 # ---------------------------------------------------------------- auth -----
 SESSION_TTL  = 12 * 3600           # a work shift
 MAX_FAILS    = 5                   # per badge id AND per source IP
@@ -345,6 +371,29 @@ class H(BaseHTTPRequestHandler):
             return None
         return u
 
+    def _require(self, path):
+        """Gate a route. Returns the user, or sends the error and returns None.
+
+        This is the security boundary, not the UI. Anyone can POST here
+        directly, so the check happens on every request regardless of what
+        buttons the caller's browser rendered.
+        """
+        perm = ROUTE_PERMS.get(path)
+        if perm is None:                     # unknown route: refuse, never allow
+            self._json({"error": "unknown endpoint"}, 404)
+            return None
+        u = self._user()
+        if not u:
+            self._json({"error": "unauthorized"}, 401)
+            return None
+        if not has(u, perm):
+            # Don't name the missing flag -- the client is only ever told its
+            # own effective permissions, never the rest of the catalog.
+            audit(u, "denied", path)
+            self._json({"error": "forbidden"}, 403)
+            return None
+        return u
+
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("/api/me", "/api/session"):
@@ -357,8 +406,8 @@ class H(BaseHTTPRequestHandler):
                                    "perms": sorted(u.get("perms", []))})
             return self._json({"authenticated": False})
         if path == "/api/bins":
-            if not self._user():
-                return self._json({"error": "unauthorized"}, 401)
+            if not self._require("/api/bins"):
+                return
             return self._json(merged())
         rel = path.lstrip("/") or "index.html"
         fp  = os.path.normpath(os.path.join(PUBLIC, rel))
@@ -401,13 +450,11 @@ class H(BaseHTTPRequestHandler):
             return self._json({"ok": True},
                               extra_headers={"Set-Cookie": session_cookie(None)})
 
-        session = self._user()
+        session = self._require(path)
         if not session:
-            return self._json({"error": "unauthorized"}, 401)
+            return
 
-        if path == "/api/parts":
-            if not has(session, "add_parts"):
-                return self._json({"error": "forbidden"}, 403)
+        if path in ("/api/bins/add", "/api/parts"):
             pn = str(payload.get("pn", "")).strip()
             if not pn:
                 return self._json({"error": "part number required"}, 400)
@@ -452,9 +499,6 @@ class H(BaseHTTPRequestHandler):
         rid = payload.get("id")
         if not rid:
             return self._json({"error": "missing id"}, 400)
-        need = {"/api/box": "adjust_counts", "/api/binfull": "toggle_binfull"}.get(path)
-        if need and not has(session, need):
-            return self._json({"error": "forbidden"}, 403)
         with _lock:
             state = load_state()
             entry = state.setdefault(rid, {"boxes": 0, "binFull": False})
