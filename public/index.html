@@ -97,6 +97,31 @@
   .modal-field input,.modal-field select{width:100%;font-size:16px;padding:10px 12px;border-radius:10px;
     border:1px solid var(--line);background:var(--panel2);color:var(--txt);outline:none}
   .modal-field input:focus,.modal-field select:focus{border-color:var(--cabB);box-shadow:0 0 0 3px rgba(59,130,246,.22)}
+  .pin-label{display:block;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px;margin:0 0 5px;text-align:left}
+  .pin-field{margin-bottom:14px}
+  .pin-input.badge{font-size:26px;letter-spacing:6px}
+  .ebtn{font-size:11px;font-weight:600;padding:6px 10px;border-radius:9px;border:1px solid var(--line);
+    color:var(--dim);background:transparent;cursor:pointer}
+  .ebtn:disabled{opacity:.4;cursor:not-allowed}
+  .ebtn:not(:disabled):hover{color:var(--txt);border-color:var(--cabB)}
+  .edit-note{margin-top:8px;font-size:11px;color:#9dc0ff}
+  .admin-btn{width:100%;margin-top:8px;font-size:13px;font-weight:700;padding:10px;border-radius:11px;
+    border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+  .admin-card{max-width:460px;max-height:86vh;overflow-y:auto}
+  .perm-grid{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .perm-chip{display:flex;align-items:center;gap:5px;font-size:11px;padding:5px 9px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel2);color:var(--dim);cursor:pointer}
+  .perm-chip input{margin:0;accent-color:var(--box)}
+  .perm-chip.on{color:var(--box);border-color:var(--box-line);background:var(--box-bg)}
+  .user-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+  .user-row:first-of-type{border-top:0}
+  .user-row .un{flex:1;min-width:0}
+  .user-row .un b{display:block;font-size:13px}
+  .user-row .un span{font-size:11px;color:var(--dim);word-break:break-all}
+  .user-row.off .un b{color:var(--dim);text-decoration:line-through}
+  .admin-sec{margin-top:18px;padding-top:6px;border-top:1px solid var(--line)}
+  .admin-sec h2{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 2px}
+  .modal-ok{min-height:18px;margin-top:10px;font-size:12px;color:var(--box);text-align:center}
   .modal-actions{display:flex;gap:8px;margin-top:18px}
   .modal-actions button{flex:1;font-size:14px;font-weight:700;padding:12px;border-radius:12px;cursor:pointer}
   .modal-btn-primary{border:1px solid var(--box-line);background:var(--box-bg);color:var(--box)}
@@ -108,8 +133,15 @@
 <div id="loginScreen" class="login-wrap" hidden>
   <div class="login-card">
     <h1>Bolt Cabinet Lookup</h1>
-    <p class="login-sub">Enter your 6-digit employee PIN</p>
-    <input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
+    <p class="login-sub">Sign in with your badge number and PIN</p>
+    <div class="pin-field">
+      <label class="pin-label" for="badge">Badge number</label>
+      <input id="badge" class="pin-input badge" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="&mdash;&mdash;&mdash;&mdash;">
+    </div>
+    <div class="pin-field">
+      <label class="pin-label" for="pin">PIN</label>
+      <input id="pin" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="32" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
+    </div>
     <button id="pinSubmit" type="button" class="pin-submit">Log in</button>
     <div id="pinMsg" class="pin-msg"></div>
   </div>
@@ -144,6 +176,71 @@
     <div id="apMsg" class="modal-msg"></div>
   </div>
 </div>
+<div id="editScreen" class="login-wrap" hidden>
+  <div class="form-card">
+    <h1>Edit entry</h1>
+    <p class="login-sub" id="edWhich"></p>
+    <div class="modal-field">
+      <label for="edPn">Part number</label>
+      <input id="edPn" autocomplete="off" placeholder="e.g. 11602909">
+    </div>
+    <div class="modal-field">
+      <label for="edCab">Cabinet</label>
+      <select id="edCab">
+        <option value="">Leave as is</option>
+        <option value="A">Cabinet A</option>
+        <option value="B">Cabinet B</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label for="edBin">Bin</label>
+      <input id="edBin" autocomplete="off" placeholder="e.g. N9 or 6-5">
+    </div>
+    <div class="modal-field">
+      <label for="edNote">Note (optional)</label>
+      <input id="edNote" autocomplete="off" maxlength="120" placeholder="e.g. confirmed at cabinet">
+    </div>
+    <div class="modal-actions">
+      <button id="edCancel" type="button" class="modal-btn-secondary">Cancel</button>
+      <button id="edSubmit" type="button" class="modal-btn-primary">Save change</button>
+    </div>
+    <div id="edMsg" class="modal-msg"></div>
+  </div>
+</div>
+<div id="adminScreen" class="login-wrap" hidden>
+  <div class="form-card admin-card">
+    <h1>Users</h1>
+    <div id="adList"></div>
+    <div class="admin-sec">
+      <h2 id="adFormTitle">Add a user</h2>
+      <div class="modal-field">
+        <label for="adId">Badge number</label>
+        <input id="adId" inputmode="numeric" pattern="[0-9]*" maxlength="12" autocomplete="off" placeholder="e.g. 3310">
+      </div>
+      <div class="modal-field">
+        <label for="adName">Name</label>
+        <input id="adName" autocomplete="off" placeholder="e.g. Marco R.">
+      </div>
+      <div class="modal-field">
+        <label for="adPin">PIN (6+ digits)</label>
+        <input id="adPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="32" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
+      </div>
+      <div class="modal-field">
+        <label>Permissions</label>
+        <div id="adPerms" class="perm-grid"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="adReset" type="button" class="modal-btn-secondary">Clear</button>
+        <button id="adSave" type="button" class="modal-btn-primary">Save user</button>
+      </div>
+      <div id="adMsg" class="modal-msg"></div>
+      <div id="adOk" class="modal-ok"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="adClose" type="button" class="modal-btn-secondary">Close</button>
+    </div>
+  </div>
+</div>
 <div class="wrap">
   <header>
     <div id="userBadge" class="user-badge" hidden><b id="userName"></b><button id="logoutBtn" type="button">Log out</button></div>
@@ -155,6 +252,7 @@
     </div>
     <div class="hint">Type the last 4 of a part number. Type <b>back stock</b> to list all refill boxes.</div>
     <button id="addPartBtn" class="addpart-btn" type="button" hidden>+ Add new part</button>
+    <button id="adminBtn" class="admin-btn" type="button" hidden>Manage users</button>
   </header>
   <div id="results"></div>
   <div class="foot">
@@ -171,6 +269,11 @@
       results=document.getElementById('results'), sub=document.getElementById('sub'),
       liveNote=document.getElementById('liveNote');
   var last4={}; var apiMode=false; var currentUser=null;
+  // Mirrors PERMS in server/server.py. Hiding a control here is convenience
+  // only -- the server re-checks every one of these on every request.
+  function can(p){ return !!(currentUser && currentUser.perms && currentUser.perms.indexOf(p)>=0); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function loc(e){ return e.cab==='?' ? 'NO BIN' : 'C'+e.cab+'-'+e.bin; }
   function indexData(){
     last4={};
@@ -193,22 +296,27 @@
 
   function boxPanel(e){
     var boxes = e.boxes || 0;
-    var note = e.boxNote ? '<div class="box-note">⚠ '+e.boxNote+'</div>' : '';
+    var note = e.boxNote ? '<div class="box-note">⚠ '+esc(e.boxNote)+'</div>' : '';
+    if(e.editNote) note += '<div class="edit-note">✎ '+esc(e.editNote)+'</div>';
     var live = apiMode && e.id;
-    var viewerOnly = !!(currentUser && currentUser.role==='viewer');
-    var dis = (live && !viewerOnly) ? '' : ' disabled';
+    var disCount = (live && can('adjust_counts')) ? '' : ' disabled';
+    var disFull  = (live && can('toggle_binfull')) ? '' : ' disabled';
+    var disEdit  = (live && can('edit_bins')) ? '' : ' disabled';
     var fullCls = 'bfull' + (e.binFull ? ' on' : '');
     var fullBtn = e.cab==='?' ? '' :
-      '<button class="'+fullCls+'" data-act="full"'+dis+'>'+(e.binFull?'Bin full ✓':'Bin full')+'</button>';
+      '<button class="'+fullCls+'" data-act="full"'+disFull+'>'+(e.binFull?'Bin full ✓':'Bin full')+'</button>';
+    var editBtn = live && can('edit_bins')
+      ? '<button class="ebtn" data-act="edit"'+disEdit+'>Edit</button>' : '';
     var soon = !live ? '<div class="box-soon">Buttons activate once deployed to the T320.</div>'
-      : viewerOnly ? '<div class="box-soon">View only — ask an editor to update counts.</div>' : '';
-    return '<div class="box" data-id="'+(e.id||'')+'">'+
+      : (!can('adjust_counts') && !can('toggle_binfull'))
+        ? '<div class="box-soon">View only — ask someone with edit access to update counts.</div>' : '';
+    return '<div class="box" data-id="'+esc(e.id||'')+'">'+
       '<div class="box-row">'+
         '<div class="box-cnt"><span>'+boxes+'</span>box'+(boxes==1?'':'es')+' in back stock</div>'+
         '<div class="box-btns">'+
-          '<button class="bbtn" data-act="recv"'+dis+'>+ received</button>'+
-          '<button class="bbtn" data-act="tobin"'+dis+'>− to bin</button>'+
-          fullBtn+
+          '<button class="bbtn" data-act="recv"'+disCount+'>+ received</button>'+
+          '<button class="bbtn" data-act="tobin"'+disCount+'>− to bin</button>'+
+          fullBtn + editBtn +
         '</div>'+
       '</div>'+ note + soon +
     '</div>';
@@ -226,11 +334,12 @@
     var entry = BINS.find(function(e){return e.id===id;});
     if(!entry) return;
     var act = btn.dataset.act;
+    if(act==='edit'){ showEdit(entry); return; }
     btn.disabled = true;
     var req = act==='full' ? postJSON('/api/binfull',{id:id,value:!entry.binFull})
       : postJSON('/api/box',{id:id,delta:act==='recv'?1:-1});
     req.then(function(res){
-      if(res.status===401){ currentUser=null; updateUserBadge(); showLogin('Session expired — log in again.'); return; }
+      if(res.status===401){ sessionLost(); return; }
       if(res.status===403){ render(); return; }
       var d=res.body;
       if(d && typeof d.boxes==='number'){ entry.boxes=d.boxes; entry.binFull=!!d.binFull; }
@@ -281,45 +390,60 @@
     if(liveNote) liveNote.textContent = apiMode
       ? 'Live — counts sync with the T320 server.'
       : 'Counts show read-only; the +/− buttons and Bin-full toggle go live when deployed to the T320.';
-    updateAddPartBtn();
+    updateHeaderBtns();
   }
   q.addEventListener('input',render);
   clr.addEventListener('click',function(){q.value='';q.focus();render();});
 
   var loginScreen=document.getElementById('loginScreen'), pinEl=document.getElementById('pin'),
+      badgeEl=document.getElementById('badge'),
       pinMsg=document.getElementById('pinMsg'), userBadge=document.getElementById('userBadge'),
       userName=document.getElementById('userName');
 
   function showLogin(msg){
     pinMsg.textContent = msg || '';
-    pinEl.value=''; loginScreen.hidden=false; pinEl.focus();
+    pinEl.value='';                       // the typed search in #q is left alone
+    loginScreen.hidden=false;
+    (badgeEl.value ? pinEl : badgeEl).focus();
   }
   function hideLogin(){ loginScreen.hidden=true; }
+  // Any 401 lands here: drop the user, close every modal, show the login
+  // screen. The search box keeps whatever was typed so logging back in
+  // returns you to the same results.
+  function sessionLost(){
+    currentUser=null;
+    hideEdit(); hideAddPart(); hideAdmin();
+    updateUserBadge(); updateHeaderBtns();
+    showLogin('Session expired — log in again.');
+  }
   function updateUserBadge(){
-    if(currentUser){ userName.textContent=currentUser.name+(currentUser.role==='viewer'?' (view only)':''); userBadge.hidden=false; }
+    if(currentUser){ userName.textContent=currentUser.name; userBadge.hidden=false; }
     else { userBadge.hidden=true; }
   }
   function submitPin(){
-    var pin=(pinEl.value||'').trim();
-    if(!/^[0-9]{6}$/.test(pin)){ pinMsg.textContent='Enter your 6-digit PIN.'; return; }
+    var badge=(badgeEl.value||'').trim(), pin=(pinEl.value||'').trim();
+    if(!/^[0-9]{1,12}$/.test(badge)){ pinMsg.textContent='Enter your badge number.'; return; }
+    if(!/^[0-9]{6,}$/.test(pin)){ pinMsg.textContent='Enter your PIN (6 or more digits).'; return; }
     pinMsg.textContent='Checking…';
-    postJSON('/api/login',{pin:pin}).then(function(res){
+    postJSON('/api/login',{id:badge, pin:pin}).then(function(res){
       if(res.body && res.body.ok){
-        currentUser={name:res.body.name, role:res.body.role};
+        currentUser={id:res.body.id, name:res.body.name, perms:res.body.perms||[]};
+        pinEl.value='';
         hideLogin(); updateUserBadge(); loadLiveBins();
-      } else if(res.status===429){
-        var wait = res.body && res.body.retryAfter ? Math.max(1,Math.ceil(res.body.retryAfter/60)) : 5;
-        pinMsg.textContent='Too many attempts. Try again in ~'+wait+' min.';
       } else {
-        pinMsg.textContent='Incorrect PIN.';
+        // The server deliberately returns one message for every failure
+        // reason -- wrong PIN, unknown badge, locked out. Don't guess here.
+        pinMsg.textContent=(res.body && res.body.error) || 'Badge number or PIN is incorrect.';
+        pinEl.value=''; pinEl.focus();
       }
     }).catch(function(){ pinMsg.textContent='Connection error — try again.'; });
   }
   document.getElementById('pinSubmit').addEventListener('click',submitPin);
+  badgeEl.addEventListener('keydown',function(e){ if(e.key==='Enter') pinEl.focus(); });
   pinEl.addEventListener('keydown',function(e){ if(e.key==='Enter') submitPin(); });
   document.getElementById('logoutBtn').addEventListener('click',function(){
     fetch('/api/logout',{method:'POST'}).then(function(){
-      currentUser=null; updateUserBadge(); updateAddPartBtn(); showLogin();
+      currentUser=null; updateUserBadge(); updateHeaderBtns(); showLogin();
     });
   });
 
@@ -328,11 +452,10 @@
       apBinField=document.getElementById('apBinField'), apBin=document.getElementById('apBin'),
       apBoxes=document.getElementById('apBoxes'), apMsg=document.getElementById('apMsg');
 
-  function updateAddPartBtn(){
-    addPartBtn.hidden = !apiMode;
-    var canEdit = !!(currentUser && currentUser.role==='editor');
-    addPartBtn.disabled = !canEdit;
-    addPartBtn.title = canEdit ? '' : 'Editors only';
+  var adminBtn=document.getElementById('adminBtn');
+  function updateHeaderBtns(){
+    addPartBtn.hidden = !(apiMode && can('add_parts'));
+    adminBtn.hidden   = !(apiMode && can('manage_users'));
   }
   apCab.addEventListener('change',function(){
     apBinField.hidden = !apCab.value;
@@ -354,8 +477,8 @@
     if(cab && !bin){ apMsg.textContent='Enter a bin location, or switch to "No bin yet".'; return; }
     var boxes=parseInt(apBoxes.value,10); if(isNaN(boxes)||boxes<0) boxes=0;
     apMsg.textContent='Adding…';
-    postJSON('/api/parts',{pn:pn,cab:cab,bin:bin,boxes:boxes}).then(function(res){
-      if(res.status===401){ hideAddPart(); currentUser=null; updateUserBadge(); updateAddPartBtn(); showLogin('Session expired — log in again.'); return; }
+    postJSON('/api/bins/add',{pn:pn,cab:cab,bin:bin,boxes:boxes}).then(function(res){
+      if(res.status===401){ sessionLost(); return; }
       if(res.body && res.body.ok){
         BINS.push(res.body.bin); indexData(); hideAddPart();
         q.value=pn.slice(-4); render();
@@ -365,9 +488,151 @@
     }).catch(function(){ apMsg.textContent='Connection error — try again.'; });
   });
 
+  // ------------------------------------------------------ edit an entry ---
+  var editScreen=document.getElementById('editScreen'), edPn=document.getElementById('edPn'),
+      edCab=document.getElementById('edCab'), edBin=document.getElementById('edBin'),
+      edNote=document.getElementById('edNote'), edMsg=document.getElementById('edMsg'),
+      edWhich=document.getElementById('edWhich'), editingId=null;
+
+  function showEdit(e){
+    if(!can('edit_bins')) return;
+    editingId=e.id;
+    edWhich.textContent = (e.cab==='?' ? 'Back stock, no bin yet' : 'Currently C'+e.cab+'-'+e.bin)
+      + ' · ' + e.pn;
+    edPn.value = e.cab==='?' ? '' : e.pn;   // legacy no-bin PNs are "…1234"
+    edCab.value = (e.cab==='A'||e.cab==='B') ? e.cab : '';
+    edBin.value = e.cab==='?' ? '' : e.bin;
+    edNote.value=''; edMsg.textContent='';
+    editScreen.hidden=false; edPn.focus();
+  }
+  function hideEdit(){ editScreen.hidden=true; editingId=null; }
+  document.getElementById('edCancel').addEventListener('click',hideEdit);
+  editScreen.addEventListener('keydown',function(e){ if(e.key==='Escape') hideEdit(); });
+  document.getElementById('edSubmit').addEventListener('click',function(){
+    if(!editingId) return;
+    var cur = BINS.find(function(x){return x.id===editingId;}) || {};
+    var body = {id:editingId};
+    var pn=(edPn.value||'').trim(), cab=edCab.value, bin=(edBin.value||'').trim().toUpperCase();
+    if(pn && pn!==cur.pn) body.pn=pn;
+    if(cab && bin && (cab!==cur.cab || bin!==String(cur.bin||'').toUpperCase())){
+      body.cab=cab; body.bin=bin;
+    } else if(bin && !cab){
+      edMsg.textContent='Pick a cabinet for that bin.'; return;
+    }
+    if(body.pn===undefined && body.cab===undefined){
+      edMsg.textContent='Nothing changed.'; return;
+    }
+    var note=(edNote.value||'').trim(); if(note) body.note=note;
+    edMsg.textContent='Saving…';
+    postJSON('/api/bins/edit',body).then(function(res){
+      if(res.status===401){ sessionLost(); return; }
+      if(res.body && res.body.ok && res.body.bin){
+        var i = BINS.findIndex(function(x){return x.id===editingId;});
+        if(i>=0) BINS[i]=res.body.bin;
+        hideEdit(); indexData(); render();
+      } else {
+        edMsg.textContent=(res.body && res.body.error) || 'Could not save that change.';
+      }
+    }).catch(function(){ edMsg.textContent='Connection error — try again.'; });
+  });
+
+  // ----------------------------------------------------------- user admin --
+  var adminScreen=document.getElementById('adminScreen'), adList=document.getElementById('adList'),
+      adId=document.getElementById('adId'), adName=document.getElementById('adName'),
+      adPin=document.getElementById('adPin'), adPerms=document.getElementById('adPerms'),
+      adMsg=document.getElementById('adMsg'), adOk=document.getElementById('adOk'),
+      adFormTitle=document.getElementById('adFormTitle'), adCatalog={}, adEditing=null;
+
+  function renderPermChips(selected){
+    adPerms.innerHTML='';
+    Object.keys(adCatalog).sort().forEach(function(k){
+      var on = selected.indexOf(k)>=0;
+      var lab=document.createElement('label');
+      lab.className='perm-chip'+(on?' on':''); lab.title=adCatalog[k];
+      lab.innerHTML='<input type="checkbox" value="'+esc(k)+'"'+(on?' checked':'')+'>'+esc(k);
+      lab.querySelector('input').addEventListener('change',function(){
+        lab.classList.toggle('on', this.checked);
+      });
+      adPerms.appendChild(lab);
+    });
+  }
+  function chosenPerms(){
+    return Array.prototype.slice.call(adPerms.querySelectorAll('input:checked'))
+      .map(function(i){return i.value;});
+  }
+  function adClear(){
+    adEditing=null; adFormTitle.textContent='Add a user';
+    adId.value=''; adId.disabled=false; adName.value=''; adPin.value='';
+    adMsg.textContent=''; adOk.textContent=''; renderPermChips(['view']);
+  }
+  function adLoad(){
+    fetch('/api/admin/users',{cache:'no-store'}).then(function(r){
+      if(r.status===401){ sessionLost(); return null; }
+      return r.ok?r.json():null;
+    }).then(function(d){
+      if(!d) return;
+      adCatalog=d.perms||{};
+      if(!adPerms.children.length) renderPermChips(['view']);
+      adList.innerHTML='';
+      (d.users||[]).forEach(function(u){
+        var row=document.createElement('div');
+        row.className='user-row'+(u.active===false?' off':'');
+        row.innerHTML='<div class="un"><b>'+esc(u.name)+'</b><span>'+esc(u.id)+' · '+
+          esc((u.perms||[]).join(', ')||'no access')+'</span></div>';
+        var edit=document.createElement('button'); edit.className='ebtn'; edit.textContent='Edit';
+        edit.addEventListener('click',function(){
+          adEditing=u.id; adFormTitle.textContent='Editing '+u.name;
+          adId.value=u.id; adId.disabled=true; adName.value=u.name; adPin.value='';
+          adMsg.textContent=''; adOk.textContent=''; renderPermChips(u.perms||[]);
+        });
+        row.appendChild(edit);
+        var tog=document.createElement('button'); tog.className='ebtn';
+        tog.textContent = u.active===false ? 'Reactivate' : 'Deactivate';
+        tog.addEventListener('click',function(){
+          adPost({action:'update', id:u.id, active:(u.active===false)});
+        });
+        row.appendChild(tog);
+        adList.appendChild(row);
+      });
+    }).catch(function(){ adMsg.textContent='Could not load users.'; });
+  }
+  function adPost(body){
+    adMsg.textContent=''; adOk.textContent='';
+    postJSON('/api/admin/users',body).then(function(res){
+      if(res.status===401){ sessionLost(); return; }
+      if(res.body && res.body.ok){ adOk.textContent='Saved.'; adClear(); adLoad(); }
+      else adMsg.textContent=(res.body && res.body.error) || 'Could not save.';
+    }).catch(function(){ adMsg.textContent='Connection error — try again.'; });
+  }
+  document.getElementById('adSave').addEventListener('click',function(){
+    var id=(adId.value||'').trim(), name=(adName.value||'').trim(),
+        pin=(adPin.value||'').trim(), perms=chosenPerms();
+    if(!/^[0-9]{1,12}$/.test(id)){ adMsg.textContent='Badge number must be digits.'; return; }
+    if(!name){ adMsg.textContent='Name is required.'; return; }
+    if(adEditing){
+      adPost({action:'update', id:id, name:name, perms:perms});
+      if(pin){                       // a PIN typed while editing = a reset
+        postJSON('/api/admin/users/pin',{id:id, pin:pin}).then(function(res){
+          if(res.status===401){ sessionLost(); return; }
+          if(!(res.body && res.body.ok))
+            adMsg.textContent=(res.body && res.body.error) || 'PIN was not reset.';
+        });
+      }
+    } else {
+      if(!/^[0-9]{6,}$/.test(pin)){ adMsg.textContent='Set a PIN of 6 or more digits.'; return; }
+      adPost({action:'create', id:id, name:name, pin:pin, perms:perms});
+    }
+  });
+  document.getElementById('adReset').addEventListener('click',adClear);
+  function showAdmin(){ if(!can('manage_users')) return; adClear(); adminScreen.hidden=false; adLoad(); }
+  function hideAdmin(){ adminScreen.hidden=true; }
+  document.getElementById('adClose').addEventListener('click',hideAdmin);
+  adminScreen.addEventListener('keydown',function(e){ if(e.key==='Escape') hideAdmin(); });
+  adminBtn.addEventListener('click',showAdmin);
+
   function loadLiveBins(){
     fetch('/api/bins',{cache:'no-store'}).then(function(r){
-        if(r.status===401){ currentUser=null; updateUserBadge(); showLogin('Session expired — log in again.'); return null; }
+        if(r.status===401){ sessionLost(); return null; }
         return r.ok?r.json():null;
       })
       .then(function(d){ if(d&&d.bins&&d.bins.length) setData(d.bins,true); })
@@ -379,9 +644,15 @@
   }
 
   indexData(); render(); q.focus();
-  fetch('/api/session',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;})
+  // No /api/me at all means there is no server: running off a USB stick or
+  // straight off disk. Fall back to the read-only static view rather than
+  // showing a login screen that could never succeed.
+  fetch('/api/me',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;})
     .then(function(s){
-      if(s && s.authenticated){ currentUser={name:s.name, role:s.role}; updateUserBadge(); loadLiveBins(); }
+      if(s && s.authenticated){
+        currentUser={id:s.id, name:s.name, perms:s.perms||[]};
+        updateUserBadge(); loadLiveBins();
+      }
       else if(s && s.authenticated===false){ showLogin(); }
       else { fetchStatic(); }
     }).catch(fetchStatic);
