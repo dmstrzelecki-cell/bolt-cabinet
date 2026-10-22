@@ -108,9 +108,18 @@
   **0488**, **1264**, **8276**, one box each, all on Rack 1 (Bottom, Top,
   Second). David is reading the full numbers off the boxes; until then they
   cannot be recorded, because there is nothing to attach them to.
-- **21 records still claim a box the walk did not find** (21 boxes). Either
-  they sit on a shelf that was not listed, or the count is stale because the
-  box was used. Worth a second pass; nothing is broken either way.
+- **Cabinet B floor loaded 2026-10-22** — 9 records sit there, and three
+  more (`B-L7`, `B-K6`, `B-D2`) keep a Rack 1 shelf with an extra floor box
+  noted. **Cabinet A floor is still to do**, deferred because the cabinet
+  was not reachable at the time.
+- **13 records still claim a box with no location.** Six are Cabinet A bins
+  and will likely be settled by the Cabinet A floor walk; the other seven
+  (`CB-3-4`, `CB-5-3`, `CB-AA1`, `CB-K3`, `CB-M6`, `CB-U4`, `CB-Z6`) are
+  either on an unlisted shelf or stale counts. One box each.
+- **`CB-AA1` and `CB-ZZ1` are deliberate**, not typos: staging bins David
+  created so parts can be parked while bins are rearranged. Note that their
+  rows are outside the documented scheme, so `bin_is_known()` asks for a
+  confirm before a move into them.
 - **12 parts are split across shelves.** Each keeps the shelf holding the
   most boxes and carries the rest in its note (`also Rack 2 Top x2, …`).
   If the stock gets consolidated, re-run `import-shelves` and the notes
