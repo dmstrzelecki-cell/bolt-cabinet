@@ -100,11 +100,21 @@
 - CB numeric **rows 5 & 6** — one clean straight-on shot. Row-5 reads are
   suspect (5-2 …8744 vs confirmed 6-2 …8734). Rows 1–4 are fine.
 
-## Data: back-stock shelf locations (need a walk-round)
-- Every record with boxes starts with **no rack/level**, so the first
-  **back stock** list after this deploy will show all of them under
-  *Needs a shelf location*. Setting them is a one-time pass with the two
-  dropdowns on each card — rack, then level.
+## Data: back-stock shelf locations
+- **Loaded 2026-10-22** from David's counted walk: 62 records now carry a
+  rack and level (`adminctl.py import-shelves`, plus three settled by hand
+  with `set-shelf`). Box counts were set from that same tally.
+- **3 boxes on the shelves match no part in either cabinet** — last 4
+  **0488**, **1264**, **8276**, one box each, all on Rack 1 (Bottom, Top,
+  Second). David is reading the full numbers off the boxes; until then they
+  cannot be recorded, because there is nothing to attach them to.
+- **21 records still claim a box the walk did not find** (21 boxes). Either
+  they sit on a shelf that was not listed, or the count is stale because the
+  box was used. Worth a second pass; nothing is broken either way.
+- **12 parts are split across shelves.** Each keeps the shelf holding the
+  most boxes and carries the rest in its note (`also Rack 2 Top x2, …`).
+  If the stock gets consolidated, re-run `import-shelves` and the notes
+  clear themselves.
 
 ## Data: back stock with no home (need full part # + a bin)
 - ~~**…5044** — 8 boxes, no match anywhere.~~ **Closed 2026-10-22.** It was
