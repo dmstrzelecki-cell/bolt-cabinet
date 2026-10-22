@@ -16,6 +16,8 @@ Run on the container, from the Proxmox console or `pct enter`:
     python3 server/adminctl.py export           fold overrides into bins.json
     python3 server/adminctl.py import-shelves <file> [--apply] [--counts]
                                                 load a counted shelf list
+    python3 server/adminctl.py set-shelf <record-id> <location> [level]
+                                                one record, by id
 
 PINs are always prompted for, never taken as an argument -- an argument
 would land in the shell history of a shared box. Nothing here ever prints a
@@ -340,6 +342,92 @@ def cmd_export(argv):
     print("\nNothing was committed. Review the diff, then commit deliberately.")
     print("Clear overrides.json only after that commit is live on the container.")
 
+def cmd_set_shelf(argv):
+    """Set one record's back-stock location, addressed by record id.
+
+    import-shelves resolves by last 4, which is exactly what is ambiguous
+    when two records share one. This takes the id instead, so a collision
+    can be settled deliberately -- including giving the same shelf to a part
+    that lives in a bin in each cabinet.
+
+      set-shelf B-Y1 "Rack 2" Top --boxes 0 --note "shared with CA-T4"
+      set-shelf B-O8 "Rack 1" Top --boxes 7
+      set-shelf A-E1 none                      clears it
+    """
+    args, opts = [], {}
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--boxes", "--note"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            opts[a] = argv[i + 1]; i += 2
+        else:
+            args.append(a); i += 1
+    if len(args) < 2:
+        die('usage: set-shelf <record-id> <location|none> [level] '
+            '[--boxes N] [--note "..."]\n'
+            '       locations: ' + ", ".join(S.BACKSTOCK_RACKS))
+
+    rid, where = args[0], args[1]
+    level = args[2] if len(args) > 2 else ""
+
+    live = {r["id"]: r for r in S.merged()["bins"]}
+    rec = live.get(rid)
+    if not rec:
+        die(f"no record with id {rid}")
+
+    if where.lower() in ("none", "clear", "-"):
+        patch, err = S.clean_backstock("", "")
+    else:
+        # Accept a location name case-insensitively; the level must still be
+        # one that location actually has, which clean_backstock enforces.
+        match = [k for k in S.BACKSTOCK_RACKS if k.lower() == where.lower()]
+        if not match:
+            die("unknown location %r -- try one of: %s"
+                % (where, ", ".join(S.BACKSTOCK_RACKS)))
+        patch, err = S.clean_backstock(match[0], level)
+    if err:
+        die(err)
+
+    print("%s  %s  (%s)" % (rid, rec["pn"],
+                            "C%s-%s" % (rec["cab"], rec["bin"])
+                            if rec["cab"] != "?" else "no bin"))
+    print("   shelf  %s -> %s" % (
+        (rec.get("bsRack") or "none") + (" " + rec["bsLevel"] if rec.get("bsLevel") else ""),
+        (patch["bsRack"] or "none") + (" " + patch["bsLevel"] if patch["bsLevel"] else "")))
+
+    with S._lock:
+        doc = S.load_overrides()
+        entry = doc.setdefault("overrides", {}).setdefault(rid, {})
+        before = {k: entry.get(k) for k in ("bsRack", "bsLevel")}
+        entry.update(patch)
+        if "--note" in opts:
+            entry["note"] = S.clean_note(opts["--note"])
+            print("   note   %s" % entry["note"])
+        entry["edited_by"] = "cli"
+        entry["edited_at"] = S.now_iso()
+        S.save_overrides(doc)
+
+        state = S.load_state()
+        if "--boxes" in opts:
+            try:
+                n = max(0, int(opts["--boxes"]))
+            except ValueError:
+                die("--boxes needs a whole number")
+            st = state.setdefault(rid, {"boxes": 0, "binFull": False})
+            print("   boxes  %d -> %d" % (st.get("boxes", 0), n))
+            st["boxes"] = n
+        S.stamp(state, rid, {"id": "cli", "name": "shelf count"},
+                "back stock %s" % ((patch["bsRack"] +
+                                    (" \u00b7 " + patch["bsLevel"] if patch["bsLevel"] else ""))
+                                   if patch["bsRack"] else "location cleared"))
+        S.save_state(state)
+        cli_audit("set_shelf", rid, before=before, after=patch,
+                  boxes=opts.get("--boxes"))
+    print("Done. Picked up live; no restart needed.")
+
+
 # ---------------------------------------------------------- shelf import ---
 # A counted walk of the back-stock racks, in the form someone actually writes
 # it on a clipboard: a location heading, then one line per BOX, by last 4.
@@ -513,6 +601,7 @@ COMMANDS = {
     "unlock": cmd_unlock,
     "backup": cmd_backup, "list-backups": cmd_list_backups, "restore": cmd_restore,
     "export": cmd_export, "import-shelves": cmd_import_shelves,
+    "set-shelf": cmd_set_shelf,
 }
 
 if __name__ == "__main__":
