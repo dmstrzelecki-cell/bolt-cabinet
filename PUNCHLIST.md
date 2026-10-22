@@ -108,14 +108,17 @@
   **0488**, **1264**, **8276**, one box each, all on Rack 1 (Bottom, Top,
   Second). David is reading the full numbers off the boxes; until then they
   cannot be recorded, because there is nothing to attach them to.
-- **Cabinet B floor loaded 2026-10-22** — 9 records sit there, and three
-  more (`B-L7`, `B-K6`, `B-D2`) keep a Rack 1 shelf with an extra floor box
-  noted. **Cabinet A floor is still to do**, deferred because the cabinet
-  was not reachable at the time.
-- **13 records still claim a box with no location.** Six are Cabinet A bins
-  and will likely be settled by the Cabinet A floor walk; the other seven
-  (`CB-3-4`, `CB-5-3`, `CB-AA1`, `CB-K3`, `CB-M6`, `CB-U4`, `CB-Z6`) are
-  either on an unlisted shelf or stale counts. One box each.
+- **Both floors loaded 2026-10-22** — 14 records on the Cabinet A floor,
+  9 on the Cabinet B floor. Seven more keep a rack shelf as their primary
+  location with extra floor boxes noted: `A-E5`, `A-G7`, `A-R4`, `B-L7`,
+  `B-K6`, `B-D2`. **85 of the 245 records now carry a location.**
+- `B-L7` (…6368) is the awkward one: 5 boxes across four places, including
+  one on the *Cabinet A* floor even though the part bins in Cabinet B.
+  Confirmed deliberate, not a misread.
+- **9 records still claim a box with no location**, one box each:
+  `CA-J5`, `CA-T3`, `CB-3-4`, `CB-5-3`, `CB-AA1`, `CB-K3`, `CB-M6`,
+  `CB-U4`, `CB-Z6`. Neither floor walk nor the rack walk found them, so
+  they are on a shelf nobody listed or the counts are stale.
 - **`CB-AA1` and `CB-ZZ1` are deliberate**, not typos: staging bins David
   created so parts can be parked while bins are rearranged. Note that their
   rows are outside the documented scheme, so `bin_is_known()` asks for a
