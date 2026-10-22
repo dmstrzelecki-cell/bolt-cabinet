@@ -1,10 +1,21 @@
 # Punch list
 
 ## Deploy record
-- **Current known-good SHA: `41686c3`** — deployed to CT 300 on 2026-08-20,
-  verified live: auth gate returns 401 unauthenticated, super-user login
-  succeeds, `/api/bins` serves 242 records (240 seed + 2 live additions) with
-  51 live box counts intact.
+- **Current known-good SHA: `a6b81b0`** — deployed to CT 300 on 2026-10-22
+  (rack/level, move+swap, last-edited). Verified live: fast-forward pull onto
+  a clean tree, unit active, `/api/bins`, `/api/bins/edit` and the new
+  `/api/bins/move` all return **401** unauthenticated while `/` stays public,
+  `merged()` serves 246 records plus the rack definitions, and the startup
+  backfill stamped **81** records from the real `audit.log` (both key
+  generations). The inferred bin map accepts the known-empty CA-D4, CA-N3 and
+  CB-5-1 without a confirm and flags CA-D9 and CA-Z9. No bin holds two parts
+  yet. **Not verified on the container:** anything behind a login — a real
+  swap, share, or rack/level write — since that needs someone's badge and PIN.
+  Those paths were verified against a sandbox copy of the same commit.
+- **Previous known-good: `41686c3`** — deployed 2026-08-20, verified live:
+  auth gate returns 401 unauthenticated, super-user login succeeds,
+  `/api/bins` serves 242 records (240 seed + 2 live additions) with 51 live
+  box counts intact.
 - **Previous known-good (pre-auth): `0141340`.** Roll back with
   `git -C /opt/bolt-cabinet reset --hard 0141340 && systemctl restart bolt-cabinet`
   — note that the old code needs `employees.json`, which now exists **only**
