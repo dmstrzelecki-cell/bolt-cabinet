@@ -1,7 +1,15 @@
 # Punch list
 
 ## Deploy record
-- **Current known-good SHA: `a6b81b0`** — deployed to CT 300 on 2026-10-22
+- **Current known-good SHA: `4d3ebc0`** — deployed to CT 300 on 2026-10-22.
+  Seed reconciled to `2026-10-22b`: 83 records carry `bsRack`/`bsLevel` and
+  eight carry a bin correction that had only lived in `overrides.json`.
+  Verified after the pull: tree clean, 245 records served with no duplicate
+  ids, 85 locations and 166 boxes unchanged across the reconciliation, unit
+  active, `/api/bins` still 401 unauthenticated. `overrides.json` was
+  deliberately **not** cleared — it now re-applies the same values over a
+  seed that already holds them, which is idempotent.
+- **Previously known-good: `a6b81b0`** — 2026-10-22
   (rack/level, move+swap, last-edited). Verified live: fast-forward pull onto
   a clean tree, unit active, `/api/bins`, `/api/bins/edit` and the new
   `/api/bins/move` all return **401** unauthenticated while `/` stays public,
