@@ -18,6 +18,12 @@ permissions.
     login could never succeed there — see **Auth**).
   - `bins.json` — **the tracked seed.** One record per bin. The server never
     writes to it; see **Editing data**.
+  - The whole theme is the `:root` block at the top of `index.html` and
+    nothing else — every colour in the stylesheet is a var. Blue is the app
+    itself (and back stock, a brighter shade of it); **amber is Cabinet A and
+    silver is Cabinet B**, so neither cabinet colour may be reused for
+    chrome; red only ever means a warning. Don't reintroduce a hard-coded
+    hex into a rule.
   - `images/` — optional fastener photos named `<partnumber>.jpg` (`.png`/`.webp`
     also work); auto-shown when a part is found.
 - `server/server.py` — T320 deploy server (stdlib only). Serves `public/` +
