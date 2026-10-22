@@ -14,12 +14,14 @@ Run on the container, from the Proxmox console or `pct enter`:
     python3 server/adminctl.py list-backups
     python3 server/adminctl.py restore <stamp>
     python3 server/adminctl.py export           fold overrides into bins.json
+    python3 server/adminctl.py import-shelves <file> [--apply] [--counts]
+                                                load a counted shelf list
 
 PINs are always prompted for, never taken as an argument -- an argument
 would land in the shell history of a shared box. Nothing here ever prints a
 PIN, a hash, or the session key.
 """
-import sys, os, json, getpass, subprocess, datetime
+import sys, os, io, re, json, getpass, subprocess, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import server as S                      # single source of truth for hashing,
@@ -338,13 +340,179 @@ def cmd_export(argv):
     print("\nNothing was committed. Review the diff, then commit deliberately.")
     print("Clear overrides.json only after that commit is live on the container.")
 
+# ---------------------------------------------------------- shelf import ---
+# A counted walk of the back-stock racks, in the form someone actually writes
+# it on a clipboard: a location heading, then one line per BOX, by last 4.
+# Repeats are boxes, not duplicates.
+#
+#     Rack 1
+#     Top Shelf
+#     6368
+#     6368            <- two boxes of ...6368 on Rack 1 Top
+#
+# Headings match BACKSTOCK_RACKS in server.py. A location with no levels
+# (Cabinet A Floor) takes its codes directly under the location heading.
+def parse_shelf_list(path):
+    """-> (entries, problems). entries are (location, level, last4)."""
+    # "Top Shelf" / "top shelf" / "Second" all name the same level.
+    levels = {}
+    for loc, lv in S.BACKSTOCK_RACKS.items():
+        for name in lv:
+            levels.setdefault(loc, {})[name.lower()] = name
+            levels[loc][name.lower() + " shelf"] = name
+    locs = {k.lower(): k for k in S.BACKSTOCK_RACKS}
+
+    entries, problems, loc, level = [], [], None, None
+    for n, raw in enumerate(io.open(path, encoding="utf-8"), 1):
+        line = raw.strip().lstrip("*-\u2022 ").strip()
+        if not line:
+            continue
+        low = line.lower()
+        if low in locs:
+            loc = locs[low]
+            level = None
+            if not S.BACKSTOCK_RACKS[loc]:
+                level = ""            # a spot: codes follow immediately
+            continue
+        if loc and low in levels.get(loc, {}):
+            level = levels[loc][low]
+            continue
+        if re.fullmatch(r"\d{4}", line):
+            if loc is None or level is None:
+                problems.append("line %d: %s before any location/shelf heading" % (n, line))
+            else:
+                entries.append((loc, level, line))
+            continue
+        problems.append("line %d: not a heading or a 4-digit code: %r" % (n, line))
+    return entries, problems
+
+
+def cmd_import_shelves(argv):
+    """Resolve a counted shelf list onto records and write the result.
+
+    Dry run unless --apply. Last-4 codes collide by design in this data, so
+    anything that does not land on exactly one record is reported and
+    skipped rather than guessed at. A part found on more than one shelf
+    keeps the shelf holding the most boxes and gets the full spread in its
+    note -- a record holds one location, and silently dropping the rest
+    would send someone to the wrong shelf.
+    """
+    args = [a for a in argv if not a.startswith("--")]
+    if not args:
+        die("usage: import-shelves <file> [--apply] [--counts]")
+    path, apply_it, do_counts = args[0], "--apply" in argv, "--counts" in argv
+    if not os.path.exists(path):
+        die(f"no such file: {path}")
+
+    entries, problems = parse_shelf_list(path)
+    if problems:
+        print("Could not read %d line(s):" % len(problems))
+        for p in problems:
+            print("   " + p)
+        if apply_it:
+            die("fix the file first -- nothing was written.")
+
+    counts = {}                                   # (loc, level, last4) -> boxes
+    for e in entries:
+        counts[e] = counts.get(e, 0) + 1
+    listed = {}                                   # last4 -> total boxes
+    spread = {}                                   # last4 -> {(loc, level): boxes}
+    for (loc, level, c), n in counts.items():
+        listed[c] = listed.get(c, 0) + n
+        spread.setdefault(c, {})[(loc, level)] = n
+
+    by4 = {}
+    for r in S.merged()["bins"]:
+        by4.setdefault(str(r["pn"])[-4:], []).append(r)
+
+    plan, skipped = [], []
+    for c in sorted(spread):
+        match = by4.get(c, [])
+        if len(match) != 1:
+            skipped.append((c, listed[c],
+                            "no record ends in %s" % c if not match else
+                            "%d records end in %s: %s" % (
+                                len(match), c, ", ".join(r["id"] for r in match))))
+            continue
+        rec = match[0]
+        where = sorted(spread[c].items(), key=lambda kv: (-kv[1], kv[0]))
+        (loc, level), top = where[0]
+        note = ""
+        if len(where) > 1:
+            note = "also " + ", ".join(
+                "%s%s x%d" % (l, " " + lv if lv else "", n) for (l, lv), n in where[1:])
+        plan.append({"id": rec["id"], "pn": rec["pn"], "last4": c,
+                     "rack": loc, "level": level, "note": note,
+                     "boxes_now": rec.get("boxes") or 0, "boxes_listed": listed[c]})
+
+    print("\n%d box entries, %d distinct codes" % (len(entries), len(spread)))
+    print("%d code(s) resolve to exactly one record" % len(plan))
+    print("%d code(s) skipped\n" % len(skipped))
+
+    print("%-6s %-9s %-11s %-18s %-8s %s" % ("LAST4", "RECORD", "PART", "LOCATION", "BOXES", "NOTE"))
+    for p in plan:
+        boxes = ("%d" % p["boxes_listed"] if p["boxes_now"] == p["boxes_listed"]
+                 else "%d->%d" % (p["boxes_now"], p["boxes_listed"]))
+        print("%-6s %-9s %-11s %-18s %-8s %s" % (
+            p["last4"], p["id"], p["pn"][:11],
+            p["rack"] + (" " + p["level"] if p["level"] else ""),
+            boxes if do_counts else str(p["boxes_listed"]), p["note"]))
+
+    if skipped:
+        print("\nSkipped -- resolve these by hand:")
+        for c, n, why in skipped:
+            print("   %s  (%d box(es))  %s" % (c, n, why))
+
+    changed_counts = [p for p in plan if p["boxes_now"] != p["boxes_listed"]]
+    if do_counts:
+        print("\n%d record(s) would have their box count changed." % len(changed_counts))
+    elif changed_counts:
+        print("\n%d record(s) have a different count in the list. Re-run with"
+              " --counts to apply those too." % len(changed_counts))
+
+    if not apply_it:
+        print("\nDRY RUN -- nothing written. Re-run with --apply.")
+        return
+
+    S.make_backup("import-shelves")
+    with S._lock:
+        doc = S.load_overrides()
+        ovs = doc.setdefault("overrides", {})
+        state = S.load_state()
+        for p in plan:
+            bs, err = S.clean_backstock(p["rack"], p["level"])
+            if err:                      # headings came from BACKSTOCK_RACKS
+                die("unexpected: %s" % err)
+            entry = ovs.setdefault(p["id"], {})
+            before = {k: entry.get(k) for k in ("bsRack", "bsLevel")}
+            entry.update(bs)
+            if p["note"]:
+                entry["note"] = p["note"]
+            entry["edited_by"] = "cli"
+            entry["edited_at"] = S.now_iso()
+            if do_counts:
+                st = state.setdefault(p["id"], {"boxes": 0, "binFull": False})
+                st["boxes"] = p["boxes_listed"]
+            S.stamp(state, p["id"], {"id": "cli", "name": "shelf count"},
+                    "back stock %s%s" % (p["rack"],
+                                         " \u00b7 " + p["level"] if p["level"] else ""))
+            cli_audit("import_shelf", p["id"], before=before, after=bs,
+                      note=p["note"] or None,
+                      boxes=p["boxes_listed"] if do_counts else None)
+        S.save_overrides(doc)
+        S.save_state(state)
+
+    print("\nWrote %d record(s)%s." % (len(plan), " including box counts" if do_counts else ""))
+    print("Front-end changes are picked up live; no restart needed.")
+    print("Run `export` when you want these folded into the tracked seed.")
+
 
 COMMANDS = {
     "bootstrap": cmd_bootstrap, "add-user": cmd_add_user, "list-users": cmd_list_users,
     "set-perms": cmd_set_perms, "deactivate": cmd_deactivate, "reset-pin": cmd_reset_pin,
     "unlock": cmd_unlock,
     "backup": cmd_backup, "list-backups": cmd_list_backups, "restore": cmd_restore,
-    "export": cmd_export,
+    "export": cmd_export, "import-shelves": cmd_import_shelves,
 }
 
 if __name__ == "__main__":

@@ -184,6 +184,36 @@ It rewrites `public/bins.json` with the overrides folded in and bumps
 the diff on the dev machine and commit deliberately. Add `--with-additions`
 to fold in parts that were added live, too.
 
+### Loading a shelf count
+
+After a walk round the back-stock racks, feed the tally straight in rather
+than tapping 60 dropdowns. The file is what you'd write on a clipboard — a
+location heading, then **one line per box**, by last 4:
+
+```
+Rack 1
+Top Shelf
+6368
+6368
+2110
+```
+
+Two lines of `6368` means two boxes. A location with no levels (Cabinet A
+Floor) takes its codes straight under the heading.
+
+```bash
+python3 /opt/bolt-cabinet/server/adminctl.py import-shelves /path/to/count.txt
+```
+
+That's a **dry run** — it prints what it would do and writes nothing. Add
+`--apply` to commit it, and `--counts` to set box counts from the tally as
+well as shelf locations. It backs up first.
+
+Last-4 codes collide, so anything that doesn't land on exactly one record is
+listed and skipped rather than guessed at — resolve those in the app. A part
+found on more than one shelf keeps the shelf holding the most boxes and
+gets the rest in its note, since a record holds one location.
+
 For bulk or structural changes, edit `public/bins.json` by hand, bump
 `version`, and commit. See **CLAUDE.md** for the record schema, the
 addressing scheme, and the permission model.
