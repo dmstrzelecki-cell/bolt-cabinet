@@ -58,10 +58,12 @@ type the next four over them.
 Refill boxes live on two racks. Each entry can record which rack and which
 shelf, set from the two dropdowns on the result card (needs `edit_bins`):
 
-| Rack | Levels |
+| Location | Levels |
 |---|---|
 | Rack 1 | Top, Second, Third, Bottom |
 | Rack 2 | Top, Middle, Bottom |
+| Cabinet A Floor | — it's one spot, so there's no second dropdown |
+| Cabinet B Floor | — same |
 
 Anything with boxes but no shelf location is tagged **Location?** and sorts
 to the top of the **back stock** list.

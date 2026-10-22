@@ -189,10 +189,18 @@ them into `index.html` — the dropdowns are built from what the server sends,
 and off a USB stick (no server) there are simply no dropdowns, which is
 correct because editing is impossible there anyway.
 
-| Rack | Levels, physical order top → bottom |
+| Location | Levels, physical order top → bottom |
 |---|---|
 | `Rack 1` | Top, Second, Third, Bottom |
 | `Rack 2` | Top, Middle, Bottom |
+| `Cabinet A Floor` | *(none — a spot, not a shelf)* |
+| `Cabinet B Floor` | *(none)* |
+
+A location with an **empty level list** is a single spot. `clean_backstock()`
+stores `bsLevel: ""` for it and drops any level carried over from a previous
+rack; the UI hides the second dropdown and saves as soon as the location is
+picked. A location that *does* have levels still refuses to save without
+one.
 
 Level order is load-bearing: the **back stock** command walks rack by rack,
 top shelf down, so one pass covers the whole rack. Anything with `boxes > 0`

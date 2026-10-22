@@ -406,9 +406,13 @@ def load_state():
 # it is served to the front end with /api/bins so the level lists are never
 # duplicated in JavaScript. Level order is physical, top to bottom -- the
 # "back stock" walk list sorts by it so one pass down a rack covers it.
+# An empty level list means the location is a single spot, not a shelf: the
+# UI drops its second dropdown and the card shows the name on its own.
 BACKSTOCK_RACKS = {
     "Rack 1": ["Top", "Second", "Third", "Bottom"],
     "Rack 2": ["Top", "Middle", "Bottom"],
+    "Cabinet A Floor": [],
+    "Cabinet B Floor": [],
 }
 
 OVERRIDABLE = ("cab", "bin", "row", "col", "pn", "zone", "bsRack", "bsLevel")
@@ -571,8 +575,12 @@ def clean_backstock(want_rack, want_level, cur_rack=None, cur_level=None):
     if not rack and not level:
         return {"bsRack": "", "bsLevel": ""}, None
     if rack not in BACKSTOCK_RACKS:
-        return None, 'Pick a rack: %s.' % ", ".join(BACKSTOCK_RACKS)
+        return None, 'Pick a location: %s.' % ", ".join(BACKSTOCK_RACKS)
     levels = BACKSTOCK_RACKS[rack]
+    if not levels:
+        # A spot rather than a shelf. Any level carried over from a previous
+        # rack is dropped -- it would name a shelf that doesn't exist here.
+        return {"bsRack": rack, "bsLevel": ""}, None
     if level not in levels:
         return None, '"%s" is not a level on %s -- use %s.' % (
             level, rack, ", ".join(levels))
@@ -912,9 +920,13 @@ class H(BaseHTTPRequestHandler):
                 if "pn" in patch:
                     bits.append("part number set to %s" % patch["pn"])
                 if "bsRack" in patch:
-                    bits.append("back stock %s" % (
-                        "%s \u00b7 %s" % (patch["bsRack"], patch["bsLevel"])
-                        if patch["bsRack"] else "location cleared"))
+                    if not patch["bsRack"]:
+                        bits.append("back stock location cleared")
+                    elif patch["bsLevel"]:
+                        bits.append("back stock %s \u00b7 %s"
+                                    % (patch["bsRack"], patch["bsLevel"]))
+                    else:
+                        bits.append("back stock %s" % patch["bsRack"])
                 state = load_state()
                 stamp(state, rid, session, ", ".join(bits) or "entry edited")
                 save_state(state)

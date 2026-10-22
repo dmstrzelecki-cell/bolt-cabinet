@@ -455,7 +455,14 @@
   function backStockRow(e){
     var boxes = e.boxes || 0;
     var editable = apiMode && e.id && can('edit_bins') && rackNames().length;
-    var where = e.bsRack ? esc(e.bsRack)+' \u00b7 '+esc(e.bsLevel||'?') : '';
+    // A location with no levels is a spot, not a shelf -- show it alone.
+    // A missing level on a location that HAS levels is bad data, so flag it.
+    var where = '';
+    if(e.bsRack){
+      where = esc(e.bsRack);
+      if(e.bsLevel) where += ' \u00b7 '+esc(e.bsLevel);
+      else if(levelsFor(e.bsRack).length) where += ' \u00b7 ?';
+    }
     if(!boxes && !where && !editable) return '';
     var txt = 'Back stock: '+(where || 'no shelf location set')+
               ' \u00b7 '+boxes+' box'+(boxes===1?'':'es');
@@ -468,7 +475,9 @@
             return '<option value="'+esc(r)+'"'+(e.bsRack===r?' selected':'')+
                    '>'+esc(r)+'</option>'; }).join('')+
         '</select>'+
-        '<select data-bs="level" aria-label="Level"'+(e.bsRack?'':' disabled')+'>'+
+        '<select data-bs="level" aria-label="Level"'+
+          (e.bsRack && levelsFor(e.bsRack).length ? '' : ' disabled')+
+          (e.bsRack && !levelsFor(e.bsRack).length ? ' hidden' : '')+'>'+
           '<option value="">\u2014 level \u2014</option>'+
           levelsFor(e.bsRack).map(function(l){
             return '<option value="'+esc(l)+'"'+(e.bsLevel===l?' selected':'')+
@@ -573,18 +582,22 @@
     var levelSel = cardEl.querySelector('select[data-bs="level"]');
     if(!rackSel || !levelSel) return;
     if(sel.getAttribute('data-bs')==='rack'){
-      var rack = rackSel.value;
+      var rack = rackSel.value, levels = levelsFor(rack);
       levelSel.innerHTML = '<option value="">\u2014 level \u2014</option>'+
-        levelsFor(rack).map(function(l){
+        levels.map(function(l){
           return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join('');
-      levelSel.disabled = !rack;
-      if(rack) return;                      // wait for a level
+      levelSel.disabled = !rack || !levels.length;
+      levelSel.hidden   = !!rack && !levels.length;
+      // A spot has nothing more to ask, so it saves on the spot. A shelf
+      // waits for its level, since the server rejects a rack without one.
+      if(rack && levels.length) return;
     }
     saveBackstock(entry, rackSel.value, levelSel.value, cardEl);
   });
 
   function saveBackstock(entry, rack, level, cardEl){
-    if(rack && !level) return;              // half-chosen; nothing to send
+    // Only a location that HAS levels is incomplete without one.
+    if(rack && levelsFor(rack).length && !level) return;
     postJSON('/api/bins/edit',{id:entry.id, bsRack:rack, bsLevel:level})
       .then(function(res){
         if(res.status===401){ sessionLost(); return; }
