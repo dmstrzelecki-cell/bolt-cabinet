@@ -1,5 +1,5 @@
 {
- "version": "2026-10-22a",
+ "version": "2026-10-22b",
  "count": 239,
  "bins": [
   {
@@ -12,7 +12,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "B-J1"
+   "id": "B-J1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -52,7 +54,9 @@
    "pn": "11588745",
    "zone": "Main",
    "verify": false,
-   "id": "B-J5"
+   "id": "B-J5",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -72,7 +76,9 @@
    "pn": "11549171",
    "zone": "Main",
    "verify": false,
-   "id": "B-J7"
+   "id": "B-J7",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -84,7 +90,9 @@
    "verify": false,
    "boxes": 2,
    "binFull": false,
-   "id": "B-J8"
+   "id": "B-J8",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -148,7 +156,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "B-K6"
+   "id": "B-K6",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -178,7 +188,9 @@
    "pn": "11602110",
    "zone": "Main",
    "verify": false,
-   "id": "B-L1"
+   "id": "B-L1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -190,7 +202,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "B-L2"
+   "id": "B-L2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -210,7 +224,9 @@
    "pn": "11588723",
    "zone": "Main",
    "verify": false,
-   "id": "B-L4"
+   "id": "B-L4",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -220,7 +236,9 @@
    "pn": "11519388",
    "zone": "Main",
    "verify": false,
-   "id": "B-L5"
+   "id": "B-L5",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -232,7 +250,9 @@
    "verify": false,
    "boxes": 4,
    "binFull": false,
-   "id": "B-L6"
+   "id": "B-L6",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -244,7 +264,9 @@
    "verify": false,
    "boxes": 3,
    "binFull": false,
-   "id": "B-L7"
+   "id": "B-L7",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -256,7 +278,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "B-L8"
+   "id": "B-L8",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -276,7 +300,9 @@
    "pn": "11611085",
    "zone": "Main",
    "verify": false,
-   "id": "B-M2"
+   "id": "B-M2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -296,7 +322,9 @@
    "pn": "11588722",
    "zone": "Main",
    "verify": false,
-   "id": "B-M4"
+   "id": "B-M4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -328,7 +356,9 @@
    "pn": "11610911",
    "zone": "Main",
    "verify": false,
-   "id": "B-M7"
+   "id": "B-M7",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -368,7 +398,9 @@
    "pn": "11603744",
    "zone": "Main",
    "verify": false,
-   "id": "B-N3"
+   "id": "B-N3",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -378,7 +410,9 @@
    "pn": "11611035",
    "zone": "Main",
    "verify": false,
-   "id": "B-N4"
+   "id": "B-N4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -388,7 +422,9 @@
    "pn": "11601744",
    "zone": "Main",
    "verify": false,
-   "id": "B-N5"
+   "id": "B-N5",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -460,7 +496,9 @@
    "verify": false,
    "boxes": 2,
    "binFull": false,
-   "id": "B-O5"
+   "id": "B-O5",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -482,7 +520,9 @@
    "verify": false,
    "boxes": 2,
    "binFull": false,
-   "id": "B-P1"
+   "id": "B-P1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -494,7 +534,9 @@
    "verify": false,
    "boxes": 5,
    "binFull": false,
-   "id": "B-P2"
+   "id": "B-P2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -506,7 +548,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "B-P3"
+   "id": "B-P3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -518,7 +562,9 @@
    "verify": false,
    "boxes": 3,
    "binFull": false,
-   "id": "B-P4"
+   "id": "B-P4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -540,7 +586,9 @@
    "verify": false,
    "boxes": 15,
    "binFull": false,
-   "id": "B-Q1"
+   "id": "B-Q1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -552,7 +600,9 @@
    "verify": false,
    "boxes": 2,
    "binFull": false,
-   "id": "B-Q2"
+   "id": "B-Q2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -582,7 +632,9 @@
    "pn": "11589358",
    "zone": "Main",
    "verify": false,
-   "id": "B-Q5"
+   "id": "B-Q5",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -594,7 +646,9 @@
    "verify": false,
    "boxes": 2,
    "binFull": false,
-   "id": "B-R1"
+   "id": "B-R1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -616,7 +670,9 @@
    "verify": false,
    "boxes": 6,
    "binFull": false,
-   "id": "B-R3"
+   "id": "B-R3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
    "cab": "B",
@@ -626,7 +682,9 @@
    "pn": "11547070",
    "zone": "Main",
    "verify": false,
-   "id": "B-R4"
+   "id": "B-R4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -639,7 +697,9 @@
    "boxes": 2,
    "binFull": false,
    "boxNote": "Verify box label \u2014 could be 6459/6419",
-   "id": "B-R5"
+   "id": "B-R5",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -651,7 +711,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "B-A1"
+   "id": "B-A1",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -681,7 +743,9 @@
    "pn": "11548382",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-A4"
+   "id": "B-A4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -691,7 +755,9 @@
    "pn": "11519375",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-B1"
+   "id": "B-B1",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -731,7 +797,9 @@
    "pn": "11611709",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-C1"
+   "id": "B-C1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -741,7 +809,9 @@
    "pn": "11588715",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-C2"
+   "id": "B-C2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -771,7 +841,9 @@
    "pn": "11547423",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-D1"
+   "id": "B-D1",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -781,15 +853,17 @@
    "pn": "11546377",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-D2"
+   "id": "B-D2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Third"
   },
   {
-   "cab": "B",
-   "bin": "D3",
-   "row": "D",
+   "cab": "A",
+   "bin": "T3",
+   "row": "T",
    "col": "3",
    "pn": "11519377",
-   "zone": "Left Door",
+   "zone": "Right Door",
    "verify": false,
    "id": "B-D3"
   },
@@ -811,7 +885,9 @@
    "pn": "11546774",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-E1"
+   "id": "B-E1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -871,7 +947,9 @@
    "pn": "11604049",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-F3"
+   "id": "B-F3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -881,7 +959,9 @@
    "pn": "11611535",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-F4"
+   "id": "B-F4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -991,7 +1071,9 @@
    "pn": "11612283",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-I3"
+   "id": "B-I3",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -1024,7 +1106,9 @@
    "boxes": 1,
    "binFull": false,
    "boxNote": "Verify box label \u2014 could be 2295",
-   "id": "B-S2"
+   "id": "B-S2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1139,7 +1223,9 @@
    "boxes": 1,
    "binFull": false,
    "boxNote": "Verify box label \u2014 could be 0339",
-   "id": "B-V1"
+   "id": "B-V1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -1149,7 +1235,9 @@
    "pn": "11610091",
    "zone": "Right Door",
    "verify": false,
-   "id": "B-V2"
+   "id": "B-V2",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -1159,7 +1247,9 @@
    "pn": "11546566",
    "zone": "Right Door",
    "verify": false,
-   "id": "B-V3"
+   "id": "B-V3",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -1199,7 +1289,9 @@
    "pn": "11602292",
    "zone": "Right Door",
    "verify": false,
-   "id": "B-W3"
+   "id": "B-W3",
+   "bsRack": "Rack 2",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -1219,7 +1311,9 @@
    "pn": "11547349",
    "zone": "Right Door",
    "verify": false,
-   "id": "B-X1"
+   "id": "B-X1",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -1259,7 +1353,9 @@
    "pn": "11519508",
    "zone": "Right Door",
    "verify": false,
-   "id": "B-Y1"
+   "id": "B-Y1",
+   "bsRack": "Rack 2",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -1329,7 +1425,9 @@
    "pn": "84273180",
    "zone": "Right Door",
    "verify": false,
-   "id": "B-Z4"
+   "id": "B-Z4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -1351,7 +1449,9 @@
    "verify": true,
    "boxes": 1,
    "binFull": false,
-   "id": "B-1-2"
+   "id": "B-1-2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "B",
@@ -1361,7 +1461,9 @@
    "pn": "11604921",
    "zone": "Left Door",
    "verify": true,
-   "id": "B-1-3"
+   "id": "B-1-3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1393,7 +1495,9 @@
    "verify": true,
    "boxes": 1,
    "binFull": false,
-   "id": "B-2-2"
+   "id": "B-2-2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1413,7 +1517,9 @@
    "pn": "11547369",
    "zone": "Left Door",
    "verify": true,
-   "id": "B-2-4"
+   "id": "B-2-4",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -1445,7 +1551,9 @@
    "verify": true,
    "boxes": 2,
    "binFull": false,
-   "id": "B-3-3"
+   "id": "B-3-3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1467,7 +1575,9 @@
    "pn": "11547262",
    "zone": "Left Door",
    "verify": true,
-   "id": "B-4-1"
+   "id": "B-4-1",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -1480,7 +1590,9 @@
    "boxes": 2,
    "binFull": false,
    "boxNote": "Verify box label \u2014 could be 6368/6369/6377",
-   "id": "B-4-2"
+   "id": "B-4-2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1490,7 +1602,9 @@
    "pn": "11604922",
    "zone": "Left Door",
    "verify": true,
-   "id": "B-4-3"
+   "id": "B-4-3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -1500,7 +1614,9 @@
    "pn": "11603940",
    "zone": "Left Door",
    "verify": true,
-   "id": "B-4-4"
+   "id": "B-4-4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1514,13 +1630,15 @@
   },
   {
    "cab": "B",
-   "bin": "5-3",
-   "row": "5",
-   "col": "3",
+   "bin": "O7",
+   "row": "O",
+   "col": "7",
    "pn": "11602672",
-   "zone": "Left Door",
+   "zone": "Main",
    "verify": true,
-   "id": "B-5-3"
+   "id": "B-5-3",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -1530,7 +1648,9 @@
    "pn": "11609606",
    "zone": "Left Door",
    "verify": true,
-   "id": "B-5-4"
+   "id": "B-5-4",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "B",
@@ -1553,7 +1673,9 @@
    "boxes": 1,
    "binFull": false,
    "boxNote": "Verify box label \u2014 could be 8738/8739",
-   "id": "B-6-2"
+   "id": "B-6-2",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "B",
@@ -1563,7 +1685,9 @@
    "pn": "11548270",
    "zone": "Left Door",
    "verify": false,
-   "id": "B-6-3"
+   "id": "B-6-3",
+   "bsRack": "Cabinet B Floor",
+   "bsLevel": ""
   },
   {
    "cab": "B",
@@ -1737,15 +1861,17 @@
   },
   {
    "cab": "A",
-   "bin": "D1",
-   "row": "D",
+   "bin": "F1",
+   "row": "F",
    "col": "1",
    "pn": "20538173",
    "zone": "Main",
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "A-D1"
+   "id": "A-D1",
+   "bsRack": "Rack 1",
+   "bsLevel": "Top"
   },
   {
    "cab": "A",
@@ -1765,7 +1891,9 @@
    "pn": "15958694",
    "zone": "Main",
    "verify": false,
-   "id": "A-E2"
+   "id": "A-E2",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -1795,7 +1923,9 @@
    "pn": "11570298",
    "zone": "Main",
    "verify": false,
-   "id": "A-E5"
+   "id": "A-E5",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "A",
@@ -1805,7 +1935,9 @@
    "pn": "11589290",
    "zone": "Main",
    "verify": false,
-   "id": "A-E6"
+   "id": "A-E6",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -1819,8 +1951,8 @@
   },
   {
    "cab": "A",
-   "bin": "F1",
-   "row": "F",
+   "bin": "Z1",
+   "row": "Z",
    "col": "1",
    "pn": "11603036",
    "zone": "Main",
@@ -1849,9 +1981,9 @@
   },
   {
    "cab": "A",
-   "bin": "F4",
-   "row": "F",
-   "col": "4",
+   "bin": "H3",
+   "row": "H",
+   "col": "3",
    "pn": "11603602",
    "zone": "Main",
    "verify": false,
@@ -1859,13 +1991,15 @@
   },
   {
    "cab": "A",
-   "bin": "F5",
+   "bin": "F4",
    "row": "F",
-   "col": "5",
+   "col": "4",
    "pn": "11605396",
    "zone": "Main",
    "verify": true,
-   "id": "A-F5"
+   "id": "A-F5",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -1945,7 +2079,9 @@
    "pn": "11569967",
    "zone": "Main",
    "verify": false,
-   "id": "A-G6"
+   "id": "A-G6",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -1955,7 +2091,9 @@
    "pn": "10280776",
    "zone": "Main",
    "verify": false,
-   "id": "A-G7"
+   "id": "A-G7",
+   "bsRack": "Rack 2",
+   "bsLevel": "Middle"
   },
   {
    "cab": "A",
@@ -1965,7 +2103,9 @@
    "pn": "42755316",
    "zone": "Main",
    "verify": false,
-   "id": "A-H5"
+   "id": "A-H5",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -1985,7 +2125,9 @@
    "pn": "11605482",
    "zone": "Main",
    "verify": false,
-   "id": "A-H7"
+   "id": "A-H7",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -1999,9 +2141,9 @@
   },
   {
    "cab": "A",
-   "bin": "I5",
-   "row": "I",
-   "col": "5",
+   "bin": "F8",
+   "row": "F",
+   "col": "8",
    "pn": "11602490",
    "zone": "Main",
    "verify": true,
@@ -2127,7 +2269,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "A-L4"
+   "id": "A-L4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Second"
   },
   {
    "cab": "A",
@@ -2147,7 +2291,9 @@
    "pn": "11547420",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-M2"
+   "id": "A-M2",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2209,7 +2355,9 @@
    "verify": false,
    "boxes": 1,
    "binFull": false,
-   "id": "A-N4"
+   "id": "A-N4",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2219,7 +2367,9 @@
    "pn": "11547755",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-O1"
+   "id": "A-O1",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2259,7 +2409,9 @@
    "pn": "11546968",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-P1"
+   "id": "A-P1",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2299,7 +2451,9 @@
    "pn": "11519506",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-Q1"
+   "id": "A-Q1",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2339,7 +2493,9 @@
    "pn": "11546969",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-R1"
+   "id": "A-R1",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2349,7 +2505,9 @@
    "pn": "11611883",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-R2"
+   "id": "A-R2",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2369,7 +2527,9 @@
    "pn": "11603232",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-R4"
+   "id": "A-R4",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   },
   {
    "cab": "A",
@@ -2379,7 +2539,9 @@
    "pn": "11602875",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-S1"
+   "id": "A-S1",
+   "bsRack": "Cabinet A Floor",
+   "bsLevel": ""
   },
   {
    "cab": "A",
@@ -2433,11 +2595,11 @@
   },
   {
    "cab": "A",
-   "bin": "T3",
-   "row": "T",
-   "col": "3",
+   "bin": "ZZ0",
+   "row": "ZZ",
+   "col": "0",
    "pn": "11519376",
-   "zone": "Right Door",
+   "zone": "Main",
    "verify": false,
    "id": "A-T3"
   },
@@ -2449,7 +2611,9 @@
    "pn": "11519508",
    "zone": "Right Door",
    "verify": false,
-   "id": "A-T4"
+   "id": "A-T4",
+   "bsRack": "Rack 2",
+   "bsLevel": "Top"
   },
   {
    "cab": "B",
@@ -2461,7 +2625,9 @@
    "verify": false,
    "boxes": 4,
    "binFull": false,
-   "id": "B-N8"
+   "id": "B-N8",
+   "bsRack": "Rack 1",
+   "bsLevel": "Bottom"
   }
  ]
 }
