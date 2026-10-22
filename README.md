@@ -16,7 +16,8 @@ What you can do depends on the permissions you were given:
 | Search and see counts | `view` |
 | `+ received` / `− to bin` | `adjust_counts` |
 | The Bin-full toggle | `toggle_binfull` |
-| **Edit** a bin location or part number | `edit_bins` |
+| **Edit** a bin location, part number or shelf location | `edit_bins` |
+| **Change bin** — move, swap or share a bin | `edit_bins` |
 | **+ Add new part** | `add_parts` |
 | **Manage users**, unlock people | `manage_users` |
 
@@ -42,7 +43,47 @@ python3 /opt/bolt-cabinet/server/adminctl.py unlock <badge>
 
 ### Search tips
 - Type the **last 4 digits** of a part number.
-- Type **back stock** to list every refill-box item (no-bin ones on top).
+- Type a **bin code** — `M8`, `CB-M8`, `6-1` — to list everything in that
+  bin. This is how you check a bin that holds more than one part.
+- Type **back stock** to walk the refill shelves: anything with boxes but no
+  shelf location first, then rack by rack, top shelf down.
+
+On a phone the bin location is shown directly under the search box and the
+keyboard drops away as soon as the 4th digit resolves, so the answer isn't
+hidden behind it. Tap the box again and the old digits are selected — just
+type the next four over them.
+
+### Back-stock racks
+
+Refill boxes live on two racks. Each entry can record which rack and which
+shelf, set from the two dropdowns on the result card (needs `edit_bins`):
+
+| Rack | Levels |
+|---|---|
+| Rack 1 | Top, Second, Third, Bottom |
+| Rack 2 | Top, Middle, Bottom |
+
+Anything with boxes but no shelf location is tagged **Location?** and sorts
+to the top of the **back stock** list.
+
+### Moving a part to another bin
+
+**Change bin** on the result card. If the bin you name is already taken, the
+app says which part is in it and offers:
+
+- **Swap them** — the two parts exchange bins in one go.
+- **Put both here** — both parts share the bin, and every search result for
+  that bin then carries a *2 parts assigned to…* warning.
+- **Cancel**.
+
+If the bin code isn't one the app recognises for that cabinet it asks you to
+confirm before using it, rather than refusing — so a genuinely new bin still
+works, but a typo gets caught.
+
+### Who changed what
+
+Every result card carries a **Last edited** line — when, who, and what they
+did — in shop time. It covers counts, bin-full, edits, moves and swaps.
 
 ### Offline / USB
 Opening `public/index.html` straight off a USB stick still works, read-only:

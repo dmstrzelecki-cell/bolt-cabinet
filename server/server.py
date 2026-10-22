@@ -169,6 +169,7 @@ ROUTE_PERMS = {
     "/api/box":             "adjust_counts",
     "/api/binfull":         "toggle_binfull",
     "/api/bins/edit":       "edit_bins",
+    "/api/bins/move":       "edit_bins",
     "/api/bins/add":        "add_parts",
     "/api/parts":           "add_parts",     # legacy alias of /api/bins/add
     "/api/admin/users":     "manage_users",
@@ -400,7 +401,17 @@ def load_state():
                               "binFull": bool(r.get("binFull", False))}
     save_state(state); return state
 
-OVERRIDABLE = ("cab", "bin", "row", "col", "pn", "zone")
+# Back stock sits on two shelving racks beside the cabinets. This is the one
+# definition of them: every bsRack/bsLevel pair is validated against it, and
+# it is served to the front end with /api/bins so the level lists are never
+# duplicated in JavaScript. Level order is physical, top to bottom -- the
+# "back stock" walk list sorts by it so one pass down a rack covers it.
+BACKSTOCK_RACKS = {
+    "Rack 1": ["Top", "Second", "Third", "Bottom"],
+    "Rack 2": ["Top", "Middle", "Bottom"],
+}
+
+OVERRIDABLE = ("cab", "bin", "row", "col", "pn", "zone", "bsRack", "bsLevel")
 
 def with_overrides():
     """bins.json + additions.json, with overrides.json layered on top.
@@ -433,26 +444,40 @@ def merged():
         if s:
             r["boxes"]   = s.get("boxes", r.get("boxes", 0))
             r["binFull"] = s.get("binFull", r.get("binFull", False))
-    return {"version": load_bins()["version"], "count": len(recs), "bins": recs}
+            if s.get("lastEdited"):
+                r["lastEdited"] = s["lastEdited"]
+    return {"version": load_bins()["version"], "count": len(recs),
+            "racks": BACKSTOCK_RACKS, "bins": recs}
 
 def all_ids():
     return {r["id"] for r in load_bins()["bins"]} | {r["id"] for r in load_additions()}
 
-def bin_taken_by(cab, bin_code, ignore_id=None):
-    """Which record id currently occupies this cabinet+bin, post-override.
+def bin_occupants(cab, bin_code, ignore_id=None):
+    """Every record currently in this cabinet+bin, post-override.
 
-    Checked against the *live* view, not the seed, so a bin freed up by an
-    earlier edit is reusable and a bin an edit moved into is protected.
+    A list rather than one id: Share mode on /api/bins/move deliberately
+    lets two parts live in one bin, so anything that reports occupancy has
+    to be able to name more than one of them. Checked against the *live*
+    view, not the seed, so a bin freed by an earlier edit is reusable and a
+    bin an edit moved into is protected.
     """
+    out = []
     for r in with_overrides():
         if r.get("id") == ignore_id or r.get("cab") == "?":
             continue
         if r.get("cab") == cab and str(r.get("bin", "")).upper() == bin_code:
-            return r["id"]
-    return None
+            out.append(r)
+    return out
+
+def bin_taken_by(cab, bin_code, ignore_id=None):
+    """First record id in a bin, or None. Kept for the add/edit paths, which
+    block on any occupancy at all rather than offering a swap."""
+    occ = bin_occupants(cab, bin_code, ignore_id)
+    return occ[0]["id"] if occ else None
 
 # No client string is trusted. Everything that reaches a record goes through
 # one of these first; anything that doesn't match is a 400.
+BAD_BIN = "couldn't parse bin \"%s\" — use e.g. N9 or 6-5"
 RE_PN   = re.compile(r"^[0-9A-Za-z][0-9A-Za-z./-]{1,31}$")
 RE_BIN  = re.compile(r"^(?:[A-Z]{1,2}[0-9]{1,2}|[0-9]{1,2}-[0-9]{1,2})$")
 RE_ID   = re.compile(r"^(?:[AB]-[A-Z0-9-]{1,6}|NB-[0-9A-Za-z]{1,8})$")
@@ -482,6 +507,155 @@ def compute_zone(cab, row):
         if row in ("S", "T", "U", "V", "W", "X", "Y", "Z"): return "Right Door"
         return "Main"                              # J-R
     return None
+
+# Rows that physically exist, per the addressing scheme in CLAUDE.md. A move
+# to a row outside these is a typo, not a bin.
+CAB_ROWS = {
+    "A": [chr(c) for c in range(ord("A"), ord("T") + 1)],
+    "B": ([chr(c) for c in range(ord("A"), ord("Z") + 1)]
+          + [str(d) for d in range(1, 7)]),
+}
+MIN_ROW_WIDTH = 4
+
+def zone_widths():
+    """Widest column seen in each (cabinet, zone), inferred from live data.
+
+    Nothing records how many bins wide a row is, so it is derived -- but per
+    *row* maxima would reject every gap on the punch list, since CA D2-D5
+    are empty precisely because nobody has filled them in yet. Rows in one
+    zone are the same physical width, so the zone's widest column is the
+    usable bound: it accepts a known-empty CA D4 while CA D9 still reads as
+    a typo.
+    """
+    width = {}
+    for r in with_overrides():
+        cab, row = r.get("cab"), str(r.get("row") or "")
+        if cab not in CAB_ROWS or not row:
+            continue
+        try:
+            col = int(r.get("col"))
+        except (TypeError, ValueError):
+            continue
+        key = (cab, compute_zone(cab, row))
+        width[key] = max(width.get(key, MIN_ROW_WIDTH), col)
+    return width
+
+def bin_is_known(cab, bin_code):
+    """Does this bin code plausibly exist in that cabinet?
+
+    Deliberately a soft check. An unknown code is not refused outright --
+    /api/bins/move hands it back for the user to confirm, because the map
+    above is inferred and a genuinely new bin has to be reachable.
+    """
+    row, col = parse_bin_code(bin_code)
+    if row is None or row not in CAB_ROWS.get(cab, []):
+        return False
+    try:
+        col = int(col)
+    except (TypeError, ValueError):
+        return False
+    if col < 1:
+        return False
+    return col <= zone_widths().get((cab, compute_zone(cab, row)), MIN_ROW_WIDTH)
+
+def clean_backstock(want_rack, want_level, cur_rack=None, cur_level=None):
+    """Validate a rack/level pair against BACKSTOCK_RACKS.
+
+    Returns (patch, error). Clearing either field clears both -- a level
+    without its rack locates nothing. Anything not in the constant is
+    rejected rather than stored, so a typo cannot invent a shelf.
+    """
+    rack  = (want_rack  if want_rack  is not None else cur_rack)  or ""
+    level = (want_level if want_level is not None else cur_level) or ""
+    rack, level = str(rack).strip(), str(level).strip()
+    if not rack and not level:
+        return {"bsRack": "", "bsLevel": ""}, None
+    if rack not in BACKSTOCK_RACKS:
+        return None, 'Pick a rack: %s.' % ", ".join(BACKSTOCK_RACKS)
+    levels = BACKSTOCK_RACKS[rack]
+    if level not in levels:
+        return None, '"%s" is not a level on %s -- use %s.' % (
+            level, rack, ", ".join(levels))
+    return {"bsRack": rack, "bsLevel": level}, None
+
+# ------------------------------------------------------- last edited -------
+# Who last touched a record and what they did. Kept in state.json, which the
+# server owns outright; never read from the client. `action` holds the
+# finished phrase the card displays, so the front end needs no vocabulary of
+# its own to render it.
+def stamp(state, rid, session, action):
+    entry = state.setdefault(rid, {"boxes": 0, "binFull": False})
+    entry["lastEdited"] = {
+        "at": now_iso(),
+        "by": (session.get("name") or "").strip() or session.get("id"),
+        "action": action,
+    }
+    return entry
+
+def boxes_phrase(delta):
+    d = int(delta)
+    if d > 0:
+        return "+%d box%s received" % (d, "" if d == 1 else "es")
+    if d < 0:
+        return "-%d box%s to bin" % (-d, "" if d == -1 else "es")
+    return "box count unchanged"
+
+# audit.log spans two generations of key names: the pre-auth server wrote
+# employeeId/binId, the current one writes user_id/target_id. Read both.
+def _audit_phrase(entry):
+    act = entry.get("action")
+    if act == "box":
+        try:
+            return boxes_phrase(entry.get("delta", 0))
+        except (TypeError, ValueError):
+            return None
+    if act == "binfull":
+        return "marked bin full" if entry.get("after") else "cleared bin full"
+    if act == "add_part":
+        return "part added"
+    if act == "edit_bin":
+        return "entry edited"
+    if act == "move_bin":
+        return "bin changed"
+    return None
+
+def backfill_last_edited():
+    """One-time: derive lastEdited from audit.log for records that lack one.
+
+    Runs at startup, not per request. Only fills a record with no stamp, so
+    a live stamp always wins, and only for ids that still exist. A record
+    with no mutation in the log keeps no stamp and its card shows a dash.
+    """
+    if not os.path.exists(AUDIT):
+        return 0
+    known = all_ids()
+    found = {}
+    with open(AUDIT) as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except Exception:
+                continue            # a torn last line must not stop startup
+            rid = entry.get("target_id") or entry.get("binId")
+            phrase = _audit_phrase(entry)
+            if not rid or rid not in known or not phrase or not entry.get("ts"):
+                continue
+            # Append-only and chronological, so the last hit wins.
+            found[rid] = {"at": entry["ts"],
+                          "by": (entry.get("name") or entry.get("user_id")
+                                 or entry.get("employeeId") or ""),
+                          "action": phrase}
+    with _lock:
+        state = load_state()
+        filled = 0
+        for rid, value in found.items():
+            entry = state.setdefault(rid, {"boxes": 0, "binFull": False})
+            if not entry.get("lastEdited"):
+                entry["lastEdited"] = value
+                filled += 1
+        if filled:
+            save_state(state)
+    return filled
 
 class H(BaseHTTPRequestHandler):
     def _json(self, obj, code=200, extra_headers=None):
@@ -625,10 +799,10 @@ class H(BaseHTTPRequestHandler):
                     if cab not in ("A", "B"):
                         return self._json({"error": "pick a cabinet for that bin"}, 400)
                     if not RE_BIN.match(bin_code):
-                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — use e.g. N9 or 6-5"}, 400)
+                        return self._json({"error": BAD_BIN % bin_code}, 400)
                     row, col = parse_bin_code(bin_code)
                     if row is None:
-                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — use e.g. N9 or 6-5"}, 400)
+                        return self._json({"error": BAD_BIN % bin_code}, 400)
                     rid = f"{cab}-{bin_code}"
                     holder = bin_taken_by(cab, bin_code)
                     if rid in all_ids() or holder:
@@ -651,6 +825,7 @@ class H(BaseHTTPRequestHandler):
                 save_additions(additions)
                 state = load_state()
                 state[rid] = {"boxes": boxes, "binFull": False}
+                stamp(state, rid, session, "part added")
                 save_state(state)
                 audit(session, "add_part", rid, pn=pn, boxes=boxes,
                       cab=record["cab"], bin=record["bin"])
@@ -660,11 +835,14 @@ class H(BaseHTTPRequestHandler):
             rid = str(payload.get("id") or "").strip()
             if not RE_ID.match(rid):
                 return self._json({"error": "bad record id"}, 400)
-            want_cab  = payload.get("cab")
-            want_bin  = payload.get("bin")
-            want_pn   = payload.get("pn")
-            note      = clean_note(payload.get("note"))
-            if want_cab is None and want_bin is None and want_pn is None:
+            want_cab   = payload.get("cab")
+            want_bin   = payload.get("bin")
+            want_pn    = payload.get("pn")
+            want_rack  = payload.get("bsRack")
+            want_level = payload.get("bsLevel")
+            note       = clean_note(payload.get("note"))
+            if all(v is None for v in (want_cab, want_bin, want_pn,
+                                       want_rack, want_level)):
                 return self._json({"error": "nothing to change"}, 400)
 
             with _lock:
@@ -689,12 +867,10 @@ class H(BaseHTTPRequestHandler):
                     if cab not in ("A", "B"):
                         return self._json({"error": "pick cabinet A or B"}, 400)
                     if not RE_BIN.match(bin_code):
-                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — "
-                                                     "use e.g. N9 or 6-5"}, 400)
+                        return self._json({"error": BAD_BIN % bin_code}, 400)
                     row, col = parse_bin_code(bin_code)
                     if row is None:
-                        return self._json({"error": f"couldn't parse bin \"{bin_code}\" — "
-                                                     "use e.g. N9 or 6-5"}, 400)
+                        return self._json({"error": BAD_BIN % bin_code}, 400)
                     holder = bin_taken_by(cab, bin_code, ignore_id=rid)
                     if holder:
                         other = live.get(holder, {})
@@ -705,6 +881,15 @@ class H(BaseHTTPRequestHandler):
                     # the client (handoff 5.1).
                     patch.update({"cab": cab, "bin": bin_code, "row": row, "col": col,
                                   "zone": compute_zone(cab, row)})
+
+                # Where the refill boxes sit on the shelf, independent of the
+                # cabinet bin: a part can have both, or back stock only.
+                if want_rack is not None or want_level is not None:
+                    bs, err = clean_backstock(want_rack, want_level,
+                                              cur.get("bsRack"), cur.get("bsLevel"))
+                    if err:
+                        return self._json({"error": err}, 400)
+                    patch.update(bs)
 
                 before = {k: cur.get(k) for k in patch}
                 doc = load_overrides()
@@ -720,10 +905,146 @@ class H(BaseHTTPRequestHandler):
                 # off it. Re-keying would orphan a bin's box count. Do not
                 # "fix" this later.
                 save_overrides(doc)
+
+                bits = []
+                if "bin" in patch:
+                    bits.append("bin set to C%s-%s" % (patch["cab"], patch["bin"]))
+                if "pn" in patch:
+                    bits.append("part number set to %s" % patch["pn"])
+                if "bsRack" in patch:
+                    bits.append("back stock %s" % (
+                        "%s \u00b7 %s" % (patch["bsRack"], patch["bsLevel"])
+                        if patch["bsRack"] else "location cleared"))
+                state = load_state()
+                stamp(state, rid, session, ", ".join(bits) or "entry edited")
+                save_state(state)
+
                 audit(session, "edit_bin", rid, before=before, after=patch,
                       note=note or None)
                 merged_rec = {r["id"]: r for r in merged()["bins"]}.get(rid)
                 return self._json({"ok": True, "bin": merged_rec})
+
+        if path == "/api/bins/move":
+            # Moving a part into an occupied bin used to mean parking the
+            # other part somewhere random first. Three outcomes instead: a
+            # plain move into an empty bin, an atomic swap, or a deliberate
+            # shared bin. The client picks with `mode` only after the server
+            # has told it the bin is occupied and who is in it.
+            rid  = str(payload.get("id") or "").strip()
+            mode = str(payload.get("mode") or "").strip().lower() or "move"
+            if not RE_ID.match(rid):
+                return self._json({"error": "bad record id"}, 400)
+            if mode not in ("move", "swap", "share"):
+                return self._json({"error": "mode must be move, swap or share"}, 400)
+            target = str(payload.get("targetBin") or "").strip().upper()
+            bad_bin = {"error": BAD_BIN % target}
+            if not RE_BIN.match(target):
+                return self._json(bad_bin, 400)
+            row, col = parse_bin_code(target)
+            if row is None:
+                return self._json(bad_bin, 400)
+
+            with _lock:
+                live = {r["id"]: r for r in with_overrides()}
+                cur  = live.get(rid)
+                if not cur:
+                    return self._json({"error": "no such record"}, 404)
+                # A bin code means nothing without a cabinet, so the common
+                # same-cabinet move needs no `cab` -- it defaults to the one
+                # the part is already in.
+                cab = str(payload.get("cab") or cur.get("cab") or "").strip().upper()
+                if cab not in ("A", "B"):
+                    # Either the client sent something odd, or this is a
+                    # back-stock record with no cabinet of its own to fall
+                    # back on -- giving it a home has to name one.
+                    return self._json({"error": "Say which cabinet that bin is in "
+                                                "(A or B)."}, 400)
+
+                if not bin_is_known(cab, target) and not payload.get("allowUnknownBin"):
+                    # Not a refusal: the bin map is inferred, so a genuinely
+                    # new bin has to be reachable -- just not by a typo.
+                    return self._json({"error": "C%s-%s isn't a bin we know about in "
+                                                "cabinet %s. Check the code, or confirm "
+                                                "to use it anyway." % (cab, target, cab),
+                                       "code": "unknown_bin",
+                                       "cab": cab, "bin": target}, 409)
+
+                # Occupancy is re-checked here, at commit time and inside the
+                # lock -- not when the UI first asked. Two techs moving into
+                # one bin from two phones must not both win.
+                occupants = bin_occupants(cab, target, ignore_id=rid)
+                if occupants and mode == "move":
+                    return self._json({
+                        "error": "C%s-%s already holds %s." % (
+                            cab, target,
+                            ", ".join(o.get("pn") or o["id"] for o in occupants)),
+                        "code": "occupied", "cab": cab, "bin": target,
+                        "occupants": [{"id": o["id"], "pn": o.get("pn"),
+                                       "cab": o.get("cab"), "bin": o.get("bin")}
+                                      for o in occupants]}, 409)
+
+                from_cab = cur.get("cab")
+                from_bin = str(cur.get("bin") or "").upper()
+                partner  = None
+                if mode == "swap":
+                    if len(occupants) != 1:
+                        return self._json({"error":
+                            "C%s-%s is empty -- that's a plain move, not a swap."
+                            % (cab, target) if not occupants else
+                            "C%s-%s holds %d parts, so there is no single part to swap "
+                            "with." % (cab, target, len(occupants))}, 409)
+                    if from_cab not in ("A", "B") or not RE_BIN.match(from_bin):
+                        return self._json({"error": "%s has no bin of its own to swap "
+                                                    "into -- move it instead."
+                                           % (cur.get("pn") or rid)}, 409)
+                    partner = occupants[0]
+
+                doc = load_overrides()
+                ovs = doc.setdefault("overrides", {})
+
+                def place(record_id, to_cab, to_bin):
+                    r, c = parse_bin_code(to_bin)
+                    entry = ovs.setdefault(record_id, {})
+                    entry.update({"cab": to_cab, "bin": to_bin, "row": r, "col": c,
+                                  "zone": compute_zone(to_cab, r)})
+                    entry["edited_by"] = session["id"]
+                    entry["edited_at"] = now_iso()
+
+                place(rid, cab, target)
+                if partner:
+                    place(partner["id"], from_cab, from_bin)
+                # Both sides of a swap go out in a single write, and
+                # write_json is temp-file + fsync + os.replace, so a failure
+                # can never leave one part moved and the other not. The ids
+                # are NOT re-keyed -- see the note in /api/bins/edit.
+                save_overrides(doc)
+
+                state = load_state()
+                if partner:
+                    stamp(state, rid, session, "swapped into C%s-%s" % (cab, target))
+                    stamp(state, partner["id"], session,
+                          "swapped into C%s-%s" % (from_cab, from_bin))
+                elif mode == "share":
+                    stamp(state, rid, session,
+                          "moved into shared bin C%s-%s" % (cab, target))
+                else:
+                    stamp(state, rid, session, "moved to C%s-%s" % (cab, target))
+                save_state(state)
+
+                audit(session, "move_bin", rid, mode=mode,
+                      before={"cab": from_cab, "bin": cur.get("bin")},
+                      after={"cab": cab, "bin": target},
+                      partner=partner["id"] if partner else None)
+                if partner:
+                    audit(session, "move_bin", partner["id"], mode="swap",
+                          before={"cab": cab, "bin": target},
+                          after={"cab": from_cab, "bin": from_bin},
+                          partner=rid)
+
+                out = {r["id"]: r for r in merged()["bins"]}
+                return self._json({"ok": True, "mode": mode,
+                                   "bin": out.get(rid),
+                                   "partner": out.get(partner["id"]) if partner else None})
 
         if path == "/api/admin/users":
             action = str(payload.get("action") or "").strip().lower()
@@ -859,11 +1180,14 @@ class H(BaseHTTPRequestHandler):
                 delta = int(payload.get("delta", 0))
                 before = int(entry.get("boxes", 0))
                 entry["boxes"] = max(0, before + delta)
+                stamp(state, rid, session, boxes_phrase(delta))
                 audit(session, "box", rid,
                       delta=delta, before=before, after=entry["boxes"])
             elif path == "/api/binfull":
                 before = bool(entry.get("binFull", False))
                 entry["binFull"] = bool(payload.get("value"))
+                stamp(state, rid, session,
+                      "marked bin full" if entry["binFull"] else "cleared bin full")
                 audit(session, "binfull", rid,
                       before=before, after=entry["binFull"])
             else:
@@ -879,6 +1203,9 @@ if __name__ == "__main__":
     # without a signing key looks healthy and then turns every login into a
     # 500 at the worst possible moment.
     session_key()
+    filled = backfill_last_edited()
+    if filled:
+        print(f"Backfilled lastEdited on {filled} record(s) from audit.log.")
     if not load_users().get("users"):
         print("WARNING: no users yet -- nobody can log in.")
         print("         Run: python3 server/adminctl.py bootstrap")

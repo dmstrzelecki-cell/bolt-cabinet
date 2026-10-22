@@ -19,7 +19,13 @@
   leaves the `Verify` flag alone, so a bin someone just stood in front of and
   confirmed still shows "Verify". Clearing it on edit was not specified, so
   it was not done. Worth deciding — most of the low-confidence list below
-  would clear itself through normal use.
+  would clear itself through normal use. A **move** or **swap** leaves it
+  alone for the same reason.
+- **Rack labels are literally "Rack 1" and "Rack 2".** Confirmed on
+  2026-10-22 as what to ship. If the techs call them something else, it is a
+  one-line change to `BACKSTOCK_RACKS` in `server/server.py` — but any
+  rack name already stored in `overrides.json` would then stop matching and
+  those records would list under *On an unrecognised rack* until re-set.
 - **Freed bin, taken id.** Record ids are `<cab>-<bin>` and are never
   re-keyed, so if a part is edited *out* of CA-L3, the physical bin is free
   but a new part can't be added there — the id `A-L3` is still taken by the
@@ -37,6 +43,21 @@
   badge lock still applies, so the admin badge is not a brute-force free pass.
 
 ## Known limitations (deliberate, revisit later)
+- **A shared bin and the `<cab>-<bin>` id scheme.** Two parts can now
+  deliberately share a bin (**Change bin → Put both here**). The ids stay
+  what they always were, so a shared bin has two records whose ids name
+  different bins, and `/api/bins/add` into that bin still 409s on the id even
+  though the bin itself accepts another part. Sharing is rare and the 409 is
+  explanatory, so this is left alone — the fix is the same id-suffix scheme
+  the *freed bin, taken id* item below would need.
+- **A swap leaves ids pointing at the wrong bins.** After swapping CA-E1 and
+  CA-E2, record `A-E1` is in bin E2. Deliberate: ids are keys that
+  `state.json` counts hang off, and re-keying would orphan a box count. It
+  does mean an id in `audit.log` is not a location.
+- **`lastEdited` only goes back as far as `audit.log`.** The backfill at
+  startup reads both log generations (`employeeId`/`binId` and
+  `user_id`/`target_id`), but a record never touched since the log began
+  shows `Last edited —`. It fills gaps only; a live stamp always wins.
 - **No self-service PIN change.** The PIN an admin types when creating someone
   is theirs permanently until an admin resets it. So new PINs get read aloud,
   and nobody can rotate their own if it's overheard or shoulder-surfed.
@@ -67,6 +88,12 @@
 ## Data: reshoot
 - CB numeric **rows 5 & 6** — one clean straight-on shot. Row-5 reads are
   suspect (5-2 …8744 vs confirmed 6-2 …8734). Rows 1–4 are fine.
+
+## Data: back-stock shelf locations (need a walk-round)
+- Every record with boxes starts with **no rack/level**, so the first
+  **back stock** list after this deploy will show all of them under
+  *Needs a shelf location*. Setting them is a one-time pass with the two
+  dropdowns on each card — rack, then level.
 
 ## Data: back stock with no home (need full part # + a bin)
 - **…5044** — 8 boxes, no match anywhere.

@@ -3,9 +3,11 @@
 Fast **last-4 part-number → bin-location** lookup for the Penske fastener
 cabinets. Runs today as a static single-file page; deploys to the shop **T320**
 (a Proxmox LXC container, `boltsapp`, `192.168.0.126`) as a small stdlib Python
-server that persists back-stock box counts, lets techs correct bin
-locations in place, and gates everything behind a per-employee badge + PIN
-login with role-based permissions.
+server that persists back-stock box counts, records where refill boxes sit on
+the back-stock racks, lets techs correct bin locations in place (including
+moving and swapping parts between bins), stamps every change with who made it,
+and gates everything behind a per-employee badge + PIN login with role-based
+permissions.
 
 ## Layout
 - `public/` — what gets served
@@ -142,6 +144,7 @@ else — grant every flag explicitly.
 | POST | `/api/box` | `adjust_counts` |
 | POST | `/api/binfull` | `toggle_binfull` |
 | POST | `/api/bins/edit` | `edit_bins` |
+| POST | `/api/bins/move` | `edit_bins` |
 | POST | `/api/bins/add` | `add_parts` (`/api/parts` is a legacy alias) |
 | GET/POST | `/api/admin/users` | `manage_users` |
 | POST | `/api/admin/users/pin` | `manage_users` |
@@ -161,19 +164,59 @@ Top level: `{ "version", "count", "bins": [ ...records ] }`. Each record:
   store the real full number, since whoever adds them typically knows it.
 - `zone` — `"Left Door"` | `"Main"` | `"Right Door"` | `"Back stock — no bin"`
 - `verify` — `true` = low-confidence read, eyeball before trusting
+- `bsRack`, `bsLevel` — which back-stock rack and shelf the refill boxes sit
+  on. Validated against `BACKSTOCK_RACKS`; see **Back-stock racks**
 - `boxes` — refill boxes on the shelf (int, optional) — **seed value; live count lives in state.json**
 - `binFull` — cabinet bin is full (bool, optional) — seed value
 - `boxNote` — note about the count (misread warning etc.)
 
+Served-only, never stored in `bins.json`:
+- `lastEdited` — `{at, by, action}` for the last change to this record. Lives
+  in `state.json`, written by the server on **every** mutation and never
+  accepted from a client. `action` is the finished phrase the card shows
+  (`"+1 box received"`, `"swapped into CA-E2"`), so the front end needs no
+  vocabulary of its own. `adminctl.py export` never folds it into the seed.
+
 Search matches the **last 4 digits** of `pn`. Both cabinets stock similar GM
 numbers, so last-4 collisions happen — the UI shows every match with its cabinet
 + full number. Bin codes display prefixed `CA-` / `CB-`.
+
+## Back-stock racks
+Refill boxes live on two shelving racks beside the cabinets. The rack and
+level lists are defined **once**, in `BACKSTOCK_RACKS` in `server/server.py`,
+and are served to the front end on `GET /api/bins` as `racks`. Do not copy
+them into `index.html` — the dropdowns are built from what the server sends,
+and off a USB stick (no server) there are simply no dropdowns, which is
+correct because editing is impossible there anyway.
+
+| Rack | Levels, physical order top → bottom |
+|---|---|
+| `Rack 1` | Top, Second, Third, Bottom |
+| `Rack 2` | Top, Middle, Bottom |
+
+Level order is load-bearing: the **back stock** command walks rack by rack,
+top shelf down, so one pass covers the whole rack. Anything with `boxes > 0`
+and no rack gets a `Location?` tag and sorts above every rack — those are the
+boxes nobody can find without opening cartons.
+
+Setting a rack/level is an `edit_bins` action and writes `overrides.json`
+like any other edit, so `adminctl.py export` folds it into the seed with
+everything else. A level that does not belong to the chosen rack is a `400`.
 
 ## Physical addressing
 - **Cabinet A** — left door rows **A–C**, main body **D–L**, right door **M–T**.
   (D–L as "main" was inferred, not yet confirmed by the user.)
 - **Cabinet B** — left door rows **A–I** plus a **numeric block (rows 1–6, 4 cols)**
   below the letters; main **J–R**; right door **S–Z**.
+
+Nothing records how many bins wide a row is, so `bin_is_known()` infers it:
+the row letter must exist in that cabinet (`CAB_ROWS`) and the column must
+fall within the widest column seen anywhere in that row's **zone**
+(`zone_widths()`). Per-row maxima would reject every gap on the punch list —
+CA D2–D5 are empty precisely because nobody has filled them in yet. This is a
+**soft** check used only by `/api/bins/move`: an unknown code is handed back
+as `409 {"code": "unknown_bin"}` for the user to confirm, never refused, since
+a genuinely new bin has to stay reachable.
 
 ## Editing data
 `public/bins.json` is a **git-tracked seed the server never writes to.** That
@@ -211,10 +254,27 @@ Write endpoints, all gated per the **Endpoints** table:
   `bin`) or as back stock with no home (omit both; id becomes
   `NB-<last4>`). 409 if the bin is already occupied — never overwrites.
   Writes `additions.json` + seeds `state.json` in one transaction.
-- `POST /api/bins/edit {id, cab?, bin?, pn?, note?}` → corrects an existing
-  entry. `row`/`col`/`zone` are always recomputed server-side and never
-  taken from the client. 409 if the target bin is occupied, naming the part
-  in the way. Writes `overrides.json`.
+- `POST /api/bins/edit {id, cab?, bin?, pn?, bsRack?, bsLevel?, note?}` →
+  corrects an existing entry. `row`/`col`/`zone` are always recomputed
+  server-side and never taken from the client. 409 if the target bin is
+  occupied, naming the part in the way. Writes `overrides.json`.
+- `POST /api/bins/move {id, targetBin, cab?, mode?, allowUnknownBin?}` →
+  moves a part to another bin without parking anything in a random bin
+  first. `cab` defaults to the record's own, so a same-cabinet move needn't
+  send it; a back-stock record with no cabinet must. Three outcomes:
+  - **empty target** → straight move.
+  - **occupied target** → `409 {"code":"occupied", occupants:[…]}`. The
+    client re-sends with `mode:"swap"` (exactly one occupant; the two parts
+    exchange bins atomically, both stamped, both audited) or `mode:"share"`
+    (both parts deliberately live in that bin).
+  - **unrecognised bin code** → `409 {"code":"unknown_bin"}`, cleared by
+    `allowUnknownBin: true`. See **Physical addressing**.
+
+  Occupancy is re-checked at commit time inside the lock, not when the UI
+  first asked, so two phones can't both win the same bin. Both sides of a
+  swap go out in **one** `save_overrides()`; `write_json` is temp-file +
+  fsync + `os.replace`, so a failure can never leave one part moved and the
+  other not.
 
 Front end: every bin card renders `+ received` / `− to bin`; `Bin full`
 renders on real cabinet bins but not on `NB-` back-stock entries; `Edit`
@@ -260,6 +320,14 @@ admin action — user deactivation or deletion, PIN reset, restore.
   reconcile. If a live-added part should graduate into the tracked seed,
   export rather than copying records by hand.
 - Don't re-key a record id when its cab/bin changes. See **Editing data**.
+  A swap exchanges two records' `cab`/`bin` and leaves both ids alone, so
+  after a swap an id no longer matches the bin it names. That is correct and
+  deliberate — the id is a key, not an address.
+- Don't copy the rack/level lists into `index.html`. `BACKSTOCK_RACKS` in
+  `server.py` is the only definition; the UI builds its dropdowns from what
+  `/api/bins` sends. See **Back-stock racks**.
+- Don't write `lastEdited` from the client, and don't let it into
+  `bins.json`. It is server-owned state in `state.json`.
 - Don't add a reason, `retryAfter`, or a distinct status code to a failed
   login. See **Auth**.
 - Don't put a PIN in an `adminctl.py` argument — it lands in shell history.

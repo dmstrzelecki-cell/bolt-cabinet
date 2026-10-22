@@ -35,28 +35,50 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
   .card.A{border-left:5px solid var(--cabA)} .card.B{border-left:5px solid var(--cabB)}
   .card.X{border-left:5px solid var(--none)}
-  .card-top{display:flex;gap:14px;padding:14px}
-  .plate{flex:0 0 auto;min-width:130px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
-  .cab{font-size:12px;font-weight:800;letter-spacing:1px;padding:2px 0;border-radius:6px;margin-bottom:7px}
-  .A .cab{color:var(--cabA);background:var(--cabA-bg);border:1px solid var(--cabA-line)}
-  .B .cab{color:var(--cabB);background:var(--cabB-bg);border:1px solid var(--cabB-line)}
-  .X .cab{color:var(--none);background:var(--none-bg);border:1px solid var(--none-line)}
-  .code{font-size:30px;font-weight:800;line-height:1}
-  .A .code{color:var(--cabA)} .B .code{color:var(--cabB)} .X .code{color:var(--none);font-size:22px}
-  .rc{margin-top:6px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
-  .meta{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
-  .lead{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px}
-  .strip{font-size:25px;font-weight:700;font-variant-numeric:tabular-nums;word-break:break-all;margin-top:2px}
-  .strip b{color:var(--hit)}
-  .tags{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+  /* The bin location is the answer, so it leads the card: one big
+     high-contrast code, with the cabinet, zone and part number beside it. */
+  .hero{display:flex;gap:12px;align-items:center;padding:13px 14px}
+  .hero-code{font-size:38px;font-weight:800;line-height:1;letter-spacing:-.5px;white-space:nowrap}
+  .A .hero-code{color:var(--cabA)} .B .hero-code{color:var(--cabB)}
+  .X .hero-code{color:var(--none);font-size:25px;white-space:normal}
+  .hero-side{flex:1;min-width:0}
+  .hero-cab{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--dim)}
+  .A .hero-cab{color:var(--cabA)} .B .hero-cab{color:var(--cabB)}
+  .hero-pn{font-size:23px;font-weight:700;font-variant-numeric:tabular-nums;word-break:break-all;margin-top:1px}
+  .hero-pn b{color:var(--hit)}
+  .hero-rc{margin-top:3px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.6px}
+  /* Collided last-4s: every location as one compact row, above the detail. */
+  .heroes{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .heroes-lead{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;
+    color:var(--dim);padding:10px 12px 4px}
+  .hero-row{display:flex;align-items:baseline;gap:9px;padding:10px 12px;cursor:pointer;border-top:1px solid var(--line)}
+  .hero-row.A{border-left:5px solid var(--cabA)} .hero-row.B{border-left:5px solid var(--cabB)}
+  .hero-row.X{border-left:5px solid var(--none)}
+  .hr-code{font-size:21px;font-weight:800;white-space:nowrap}
+  .hero-row.A .hr-code{color:var(--cabA)} .hero-row.B .hr-code{color:var(--cabB)}
+  .hero-row.X .hr-code{color:var(--none);font-size:15px}
+  .hr-zone{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .hr-pn{margin-left:auto;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+  .hr-pn b{color:var(--hit)}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 11px}
   .tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:#22304a;color:#9dc0ff;border:1px solid #33507e}
   .tag.verify{background:var(--cabA-bg);color:#ffcf70;border-color:var(--cabA-line)}
   .tag.dup{background:#3a1420;color:#ff9bb2;border-color:#5c2333}
-  .box{border-top:1px solid var(--line);background:var(--box-bg);padding:11px 14px}
-  .box-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .box-cnt{font-size:14px;font-weight:700;color:var(--box)}
-  .box-cnt span{font-size:26px;margin-right:4px}
-  .box-btns{display:flex;gap:6px;align-items:center}
+  .tag.locq{background:var(--cabA-bg);color:#ffcf70;border-color:var(--cabA-line)}
+  .warn{margin:0 14px 11px;padding:9px 11px;border-radius:10px;background:#3a1420;
+    border:1px solid #5c2333;color:#ffc2cf;font-size:12px}
+  .warn b{display:block;margin-bottom:4px;color:#ff9bb2}
+  .warn-line{font-variant-numeric:tabular-nums}
+  .warn-this{color:var(--dim);font-size:11px}
+  .bs{border-top:1px solid var(--line);background:var(--box-bg);padding:10px 14px}
+  .bs-txt{font-size:13px;font-weight:700;color:var(--box)}
+  .bs-pick{display:flex;gap:6px;margin-top:8px}
+  .bs-pick select{flex:1;min-width:0;font-size:13px;padding:7px 8px;border-radius:9px;
+    border:1px solid var(--box-line);background:#0c1f18;color:var(--box)}
+  .bs-pick select:disabled{opacity:.45}
+  .stamp{border-top:1px solid var(--line);padding:8px 14px;font-size:11px;color:var(--dim)}
+  .box{border-top:1px solid var(--line);padding:11px 14px}
+  .box-btns{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .bbtn{font-size:12px;font-weight:700;padding:7px 10px;border-radius:9px;border:1px solid var(--box-line);
     background:#0c1f18;color:var(--box);opacity:.45;cursor:not-allowed}
   .bbtn:not(:disabled){opacity:1;cursor:pointer}
@@ -130,6 +152,19 @@
   .modal-btn-primary{border:1px solid var(--box-line);background:var(--box-bg);color:var(--box)}
   .modal-btn-secondary{border:1px solid var(--line);background:transparent;color:var(--dim)}
   .modal-msg{min-height:18px;margin-top:10px;font-size:12px;color:#ff9bb2;text-align:center}
+  .mv-occupied{margin-top:14px;padding:10px 11px;border-radius:10px;background:#3a1420;
+    border:1px solid #5c2333;color:#ffc2cf;font-size:12px}
+  .mv-occupied b{display:block;margin-bottom:5px;color:#ff9bb2}
+  .mv-ask{margin-top:7px;color:var(--txt)}
+  .mv-choices{display:flex;gap:8px;margin-top:10px}
+  .mv-choices button{flex:1;font-size:13px;font-weight:700;padding:11px;border-radius:12px;cursor:pointer}
+  /* While a search is live the chrome steps aside, so on a 360-wide phone
+     the first hero sits directly under the field rather than below the fold. */
+  body.searching h1,
+  body.searching .sub,
+  body.searching .hint,
+  body.searching #addPartBtn,
+  body.searching #adminBtn{display:none}
 </style>
 </head>
 <body>
@@ -208,6 +243,36 @@
       <button id="edSubmit" type="button" class="modal-btn-primary">Save change</button>
     </div>
     <div id="edMsg" class="modal-msg"></div>
+  </div>
+</div>
+<div id="moveScreen" class="login-wrap" hidden>
+  <div class="form-card">
+    <h1>Change bin</h1>
+    <p class="login-sub" id="mvWhich"></p>
+    <div class="modal-field">
+      <label for="mvCab">Cabinet</label>
+      <select id="mvCab">
+        <option value="A">Cabinet A</option>
+        <option value="B">Cabinet B</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label for="mvBin">Move to bin</label>
+      <input id="mvBin" autocomplete="off" placeholder="e.g. N9 or 6-5">
+    </div>
+    <div id="mvOccupied" class="mv-occupied" hidden></div>
+    <div id="mvChoices" class="mv-choices" hidden>
+      <button id="mvSwap" type="button" class="modal-btn-primary">Swap them</button>
+      <button id="mvShare" type="button" class="modal-btn-secondary">Put both here</button>
+    </div>
+    <div id="mvConfirm" class="mv-choices" hidden>
+      <button id="mvForce" type="button" class="modal-btn-primary">Use it anyway</button>
+    </div>
+    <div class="modal-actions">
+      <button id="mvCancel" type="button" class="modal-btn-secondary">Cancel</button>
+      <button id="mvSubmit" type="button" class="modal-btn-primary">Move</button>
+    </div>
+    <div id="mvMsg" class="modal-msg"></div>
   </div>
 </div>
 <div id="adminScreen" class="login-wrap" hidden>
@@ -297,47 +362,188 @@
   function hi(pn,query){ var up=pn.toUpperCase(), i=up.lastIndexOf(query);
     if(i<0) return pn; return pn.slice(0,i)+'<b>'+pn.slice(i,i+query.length)+'</b>'+pn.slice(i+query.length); }
 
-  function boxPanel(e){
+  // The rack definitions come from the server (BACKSTOCK_RACKS in
+  // server.py) with /api/bins. Off a USB stick there is no server and no
+  // editing, so an empty map simply means no dropdowns -- never a second
+  // copy of the list living here.
+  var RACKS = {};
+  function rackNames(){ return Object.keys(RACKS); }
+  function levelsFor(rack){ return RACKS[rack] || []; }
+  function levelIndex(rack,level){
+    var i = levelsFor(rack).indexOf(level);
+    return i < 0 ? 99 : i;                 // unknown levels sort last
+  }
+
+  // Shop time, not UTC and not the tablet's guess.
+  function fmtStamp(at){
+    if(!at) return '';
+    var d = new Date(at);
+    if(isNaN(d.getTime())) return '';
+    try{
+      return d.toLocaleString('en-US',{timeZone:'America/Detroit',
+        month:'short', day:'numeric', year:'numeric',
+        hour:'numeric', minute:'2-digit'})
+        .replace(/,(\s+\d{1,2}:\d{2})/, '$1');
+    }catch(err){ return d.toLocaleString(); }
+  }
+
+  // Which records sit in each cabinet+bin. A bin can legitimately hold two
+  // parts now (Share on /api/bins/move), so this drives the warning that
+  // says so wherever that bin turns up.
+  var byBin = {};
+  function binKey(e){ return e.cab + '|' + String(e.bin||'').toUpperCase(); }
+  function indexBins(){
+    byBin = {};
+    BINS.forEach(function(e){
+      if(e.cab !== 'A' && e.cab !== 'B') return;
+      var k = binKey(e);
+      (byBin[k] = byBin[k] || []).push(e);
+    });
+  }
+
+  // "M8", "CB-M8", "B-M8", "6-1" -- a bin code rather than a part number.
+  // A bare run of digits cannot match either alternative, so typing the
+  // last 4 still searches part numbers exactly as before.
+  function binQuery(raw){
+    var s = (raw||'').trim().toUpperCase().replace(/\s+/g,'');
+    var m = /^(?:C?([AB])-?)?([A-Z]{1,2}[0-9]{1,2}|[0-9]{1,2}-[0-9]{1,2})$/.exec(s);
+    return m ? {cab:m[1]||null, bin:m[2]} : null;
+  }
+
+  // The bin location is the answer to the question, so it leads the card.
+  function hero(e,query){
+    var rc = e.cab==='?' ? 'needs a part # and a bin'
+                         : ('Row '+e.row+' \u00b7 Col '+e.col);
+    var cab = e.cab==='?' ? 'BACK STOCK' : 'CABINET '+e.cab+' \u00b7 '+e.zone;
+    return '<div class="hero">'+
+      '<div class="hero-code">'+esc(loc(e))+'</div>'+
+      '<div class="hero-side">'+
+        '<div class="hero-cab">'+esc(cab)+'</div>'+
+        '<div class="hero-pn">'+hi(e.pn,query)+'</div>'+
+        '<div class="hero-rc">'+esc(rc)+'</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  function heroRow(e,query){
+    var cls = e.cab==='?' ? 'X' : e.cab;
+    var zone = e.cab==='?' ? e.zone : 'Cabinet '+e.cab+' \u00b7 '+e.zone;
+    return '<div class="hero-row '+cls+'" data-goto="'+esc(e.id||'')+'">'+
+      '<span class="hr-code">'+esc(loc(e))+'</span>'+
+      '<span class="hr-zone">'+esc(zone)+'</span>'+
+      '<span class="hr-pn">'+hi(e.pn,query)+'</span>'+
+    '</div>';
+  }
+
+  function sharedWarn(e){
+    if(e.cab !== 'A' && e.cab !== 'B') return '';
+    var mates = byBin[binKey(e)] || [];
+    if(mates.length < 2) return '';
+    return '<div class="warn"><b>\u26a0 '+mates.length+' parts assigned to '+
+      esc(loc(e))+'</b>'+
+      mates.map(function(m){
+        return '<div class="warn-line">'+esc(String(m.pn).slice(-4))+
+          ' \u00b7 '+esc(m.pn)+
+          (m.id===e.id ? ' <span class="warn-this">this one</span>' : '')+
+        '</div>';
+      }).join('')+
+    '</div>';
+  }
+
+  // Where the refill boxes are on the shelf, plus the two dependent
+  // dropdowns that set it. Levels are always the chosen rack's own.
+  function backStockRow(e){
     var boxes = e.boxes || 0;
-    var note = e.boxNote ? '<div class="box-note">⚠ '+esc(e.boxNote)+'</div>' : '';
-    if(e.editNote) note += '<div class="edit-note">✎ '+esc(e.editNote)+'</div>';
+    var editable = apiMode && e.id && can('edit_bins') && rackNames().length;
+    var where = e.bsRack ? esc(e.bsRack)+' \u00b7 '+esc(e.bsLevel||'?') : '';
+    if(!boxes && !where && !editable) return '';
+    var txt = 'Back stock: '+(where || 'no shelf location set')+
+              ' \u00b7 '+boxes+' box'+(boxes===1?'':'es');
+    var picker = '';
+    if(editable){
+      picker = '<div class="bs-pick">'+
+        '<select data-bs="rack" aria-label="Rack">'+
+          '<option value="">\u2014 no shelf \u2014</option>'+
+          rackNames().map(function(r){
+            return '<option value="'+esc(r)+'"'+(e.bsRack===r?' selected':'')+
+                   '>'+esc(r)+'</option>'; }).join('')+
+        '</select>'+
+        '<select data-bs="level" aria-label="Level"'+(e.bsRack?'':' disabled')+'>'+
+          '<option value="">\u2014 level \u2014</option>'+
+          levelsFor(e.bsRack).map(function(l){
+            return '<option value="'+esc(l)+'"'+(e.bsLevel===l?' selected':'')+
+                   '>'+esc(l)+'</option>'; }).join('')+
+        '</select>'+
+      '</div>';
+    }
+    return '<div class="bs">'+
+      '<div class="bs-txt">'+txt+'</div>'+ picker +
+      (e.boxNote ? '<div class="box-note">\u26a0 '+esc(e.boxNote)+'</div>' : '')+
+      (e.editNote ? '<div class="edit-note">\u270e '+esc(e.editNote)+'</div>' : '')+
+    '</div>';
+  }
+
+  function stampRow(e){
+    var le = e.lastEdited || null;
+    var when = le && fmtStamp(le.at);
+    if(!when) return '<div class="stamp">Last edited \u2014</div>';
+    return '<div class="stamp">Last edited '+esc(when)+
+      ' \u00b7 '+esc(le.by||'\u2014')+' \u00b7 '+esc(le.action||'')+'</div>';
+  }
+
+  function actionRow(e){
     var live = apiMode && e.id;
     var disCount = (live && can('adjust_counts')) ? '' : ' disabled';
     var disFull  = (live && can('toggle_binfull')) ? '' : ' disabled';
-    var disEdit  = (live && can('edit_bins')) ? '' : ' disabled';
-    var fullCls = 'bfull' + (e.binFull ? ' on' : '');
-    var fullBtn = e.cab==='?' ? '' :
-      '<button class="'+fullCls+'" data-act="full"'+disFull+'>'+(e.binFull?'Bin full ✓':'Bin full')+'</button>';
+    var fullCls  = 'bfull' + (e.binFull ? ' on' : '');
+    var fullBtn  = e.cab==='?' ? '' :
+      '<button class="'+fullCls+'" data-act="full"'+disFull+'>'+
+      (e.binFull ? 'Bin full \u2713' : 'Bin full')+'</button>';
+    var moveBtn = live && can('edit_bins')
+      ? '<button class="ebtn" data-act="move">Change bin</button>' : '';
     var editBtn = live && can('edit_bins')
-      ? '<button class="ebtn" data-act="edit"'+disEdit+'>Edit</button>' : '';
-    var soon = !live ? '<div class="box-soon">Buttons activate once deployed to the T320.</div>'
-      : (!can('adjust_counts') && !can('toggle_binfull'))
-        ? '<div class="box-soon">View only — ask someone with edit access to update counts.</div>' : '';
-    return '<div class="box" data-id="'+esc(e.id||'')+'">'+
-      '<div class="box-row">'+
-        '<div class="box-cnt"><span>'+boxes+'</span>box'+(boxes==1?'':'es')+' in back stock</div>'+
-        '<div class="box-btns">'+
-          '<button class="bbtn" data-act="recv"'+disCount+'>+ received</button>'+
-          '<button class="bbtn" data-act="tobin"'+disCount+'>− to bin</button>'+
-          fullBtn + editBtn +
-        '</div>'+
-      '</div>'+ note + soon +
+      ? '<button class="ebtn" data-act="edit">Edit</button>' : '';
+    var soon = !live
+      ? '<div class="box-soon">Buttons activate once deployed to the T320.</div>'
+      : (!can('adjust_counts') && !can('toggle_binfull') && !can('edit_bins'))
+        ? '<div class="box-soon">View only \u2014 ask someone with edit access '+
+          'to update this.</div>' : '';
+    return '<div class="box">'+
+      '<div class="box-btns">'+
+        '<button class="bbtn" data-act="recv"'+disCount+'>+ received</button>'+
+        '<button class="bbtn" data-act="tobin"'+disCount+'>\u2212 to bin</button>'+
+        fullBtn + moveBtn + editBtn +
+      '</div>'+ soon +
     '</div>';
   }
+
   function postJSON(url,body){
     return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
       .then(function(r){ return r.json().catch(function(){return null;}).then(function(j){return {status:r.status, body:j};}); });
   }
+  function replaceRecord(rec){
+    if(!rec || !rec.id) return;
+    var i = BINS.findIndex(function(x){ return x.id === rec.id; });
+    if(i >= 0) BINS[i] = rec;
+  }
+  function focusCard(id){
+    var el = results.querySelector('.card[data-id="'+String(id||'').replace(/"/g,'')+'"]');
+    if(el) el.scrollIntoView({block:'start', behavior:'smooth'});
+  }
+
   results.addEventListener('click', function(ev){
+    var jump = ev.target.closest('.hero-row[data-goto]');
+    if(jump){ focusCard(jump.getAttribute('data-goto')); return; }
     var btn = ev.target.closest('button[data-act]');
     if(!btn || btn.disabled) return;
-    var boxDiv = btn.closest('.box');
-    var id = boxDiv && boxDiv.getAttribute('data-id');
+    var cardEl = btn.closest('.card');
+    var id = cardEl && cardEl.getAttribute('data-id');
     if(!id) return;
     var entry = BINS.find(function(e){return e.id===id;});
     if(!entry) return;
     var act = btn.dataset.act;
     if(act==='edit'){ showEdit(entry); return; }
+    if(act==='move'){ showMove(entry); return; }
     btn.disabled = true;
     var req = act==='full' ? postJSON('/api/binfull',{id:id,value:!entry.binFull})
       : postJSON('/api/box',{id:id,delta:act==='recv'?1:-1});
@@ -345,57 +551,205 @@
       if(res.status===401){ sessionLost(); return; }
       if(res.status===403){ render(); return; }
       var d=res.body;
-      if(d && typeof d.boxes==='number'){ entry.boxes=d.boxes; entry.binFull=!!d.binFull; }
+      if(d && typeof d.boxes==='number'){
+        entry.boxes=d.boxes; entry.binFull=!!d.binFull;
+        if(d.lastEdited) entry.lastEdited=d.lastEdited;
+      }
       render();
     }).catch(function(){ btn.disabled=false; });
   });
+
+  // Rack -> level is dependent: picking a rack repoints the level list at
+  // that rack's own levels and saves nothing yet, because the server
+  // rejects a level that does not belong to the chosen rack.
+  results.addEventListener('change', function(ev){
+    var sel = ev.target.closest('select[data-bs]');
+    if(!sel) return;
+    var cardEl = sel.closest('.card');
+    var id = cardEl && cardEl.getAttribute('data-id');
+    var entry = id && BINS.find(function(e){return e.id===id;});
+    if(!entry) return;
+    var rackSel  = cardEl.querySelector('select[data-bs="rack"]');
+    var levelSel = cardEl.querySelector('select[data-bs="level"]');
+    if(!rackSel || !levelSel) return;
+    if(sel.getAttribute('data-bs')==='rack'){
+      var rack = rackSel.value;
+      levelSel.innerHTML = '<option value="">\u2014 level \u2014</option>'+
+        levelsFor(rack).map(function(l){
+          return '<option value="'+esc(l)+'">'+esc(l)+'</option>'; }).join('');
+      levelSel.disabled = !rack;
+      if(rack) return;                      // wait for a level
+    }
+    saveBackstock(entry, rackSel.value, levelSel.value, cardEl);
+  });
+
+  function saveBackstock(entry, rack, level, cardEl){
+    if(rack && !level) return;              // half-chosen; nothing to send
+    postJSON('/api/bins/edit',{id:entry.id, bsRack:rack, bsLevel:level})
+      .then(function(res){
+        if(res.status===401){ sessionLost(); return; }
+        if(res.status!==200){
+          var t = cardEl.querySelector('.bs-txt');
+          if(t) t.textContent = (res.body && res.body.error)
+            || 'Could not save that shelf location.';
+          return;
+        }
+        replaceRecord(res.body && res.body.bin);
+        render();
+      }).catch(function(){});
+  }
+
   function card(e,query){
     var cls = e.cab==='?' ? 'X' : e.cab;
-    var el=document.createElement('div'); el.className='card '+cls;
-    var dup=(last4[e.pn.slice(-4)]||[]).length>1;
-    var zoneTxt = e.cab==='?' ? e.zone : ('Cabinet '+e.cab+' · '+e.zone);
-    var tags='<span class="tag">'+zoneTxt+'</span>';
+    var el = document.createElement('div');
+    el.className = 'card '+cls;
+    el.setAttribute('data-id', e.id||'');
+    var dup = (last4[String(e.pn).slice(-4)]||[]).length>1;
+    var tags = '';
     if(e.verify && e.cab!=='?') tags+='<span class="tag verify">Verify</span>';
-    if(dup) tags+='<span class="tag dup">Shares last 4 — check cabinet + full #</span>';
-    var rc = e.cab==='?' ? 'needs part # + bin' : ('Row '+e.row+' · Col '+e.col);
-    el.innerHTML=
-      '<div class="card-top">'+
-        '<div class="plate"><div class="cab">'+(e.cab==='?'?'BACK STOCK':'CABINET '+e.cab)+'</div>'+
-          '<div class="code">'+loc(e)+'</div><div class="rc">'+rc+'</div></div>'+
-        '<div class="meta"><div class="lead">Part number</div>'+
-          '<div class="strip">'+hi(e.pn,query)+'</div><div class="tags">'+tags+'</div></div>'+
-      '</div>'+ boxPanel(e);
+    if(dup) tags+='<span class="tag dup">Shares last 4 \u2014 check cabinet + full #</span>';
+    if((e.boxes||0)>0 && !e.bsRack) tags+='<span class="tag locq">Location?</span>';
+    el.innerHTML =
+      hero(e,query)+
+      (tags ? '<div class="tags">'+tags+'</div>' : '')+
+      sharedWarn(e)+
+      backStockRow(e)+
+      stampRow(e)+
+      actionRow(e);
     return el;
   }
+
+  function addHeader(txt){
+    var h=document.createElement('div'); h.className='listhdr'; h.textContent=txt;
+    results.appendChild(h);
+  }
+
+  function renderBackStock(){
+    var items = BINS.filter(function(e){ return (e.boxes||0) > 0; });
+    // Boxes with no shelf location come first: those are the ones nobody
+    // can find without opening every carton on both racks.
+    var missing = items.filter(function(e){ return !e.bsRack; });
+    if(missing.length){
+      addHeader('Needs a shelf location ('+missing.length+')');
+      missing.sort(function(a,b){ return (b.boxes||0)-(a.boxes||0); })
+             .forEach(function(e){ results.appendChild(card(e,'')); });
+    }
+    // Then rack by rack, top shelf down, so one walk covers everything.
+    rackNames().forEach(function(rack){
+      var on = items.filter(function(e){ return e.bsRack===rack; });
+      if(!on.length) return;
+      addHeader(rack+' ('+on.length+')');
+      on.sort(function(a,b){
+        return levelIndex(rack,a.bsLevel)-levelIndex(rack,b.bsLevel)
+            || (b.boxes||0)-(a.boxes||0); })
+        .forEach(function(e){ results.appendChild(card(e,'')); });
+    });
+    // A rack the server no longer defines would otherwise disappear.
+    var orphans = items.filter(function(e){
+      return e.bsRack && rackNames().indexOf(e.bsRack)<0; });
+    if(orphans.length){
+      addHeader('On an unrecognised rack ('+orphans.length+')');
+      orphans.forEach(function(e){ results.appendChild(card(e,'')); });
+    }
+    if(!results.children.length){
+      results.innerHTML='<div class="empty"><b>Nothing in back stock</b>'+
+        'No refill boxes are recorded yet.</div>';
+    }
+  }
+
   function render(){
-    var raw=q.value; clr.classList.toggle('on', raw.length>0); results.innerHTML='';
-    if(isBackCmd(raw)){
-      var items=BINS.filter(function(e){return e.boxes;})
-        .sort(function(a,b){ return (a.cab==='?'?0:1)-(b.cab==='?'?0:1)
-          || b.boxes-a.boxes; });
-      var nobin=items.filter(function(e){return e.cab==='?';});
-      var withbin=items.filter(function(e){return e.cab!=='?';});
-      if(nobin.length){ var h=document.createElement('div'); h.className='listhdr'; h.textContent='No bin — needs a home ('+nobin.length+')'; results.appendChild(h); nobin.forEach(function(e){results.appendChild(card(e,''));}); }
-      var h2=document.createElement('div'); h2.className='listhdr'; h2.textContent='In a bin ('+withbin.length+')'; results.appendChild(h2);
-      withbin.forEach(function(e){results.appendChild(card(e,''));});
+    var raw=q.value;
+    clr.classList.toggle('on', raw.length>0);
+    // Collapse the page chrome while searching so the first hero lands
+    // directly under the field, above a phone keyboard.
+    document.body.classList.toggle('searching', raw.length>0);
+    indexBins();
+    results.innerHTML='';
+    if(isBackCmd(raw)){ renderBackStock(); return; }
+    var query=norm(raw);
+    if(!query){
+      results.innerHTML='<div class="empty"><b>Ready</b>Type a part number, '+
+        'or \u201cback stock\u201d for the refill list.</div>';
       return;
     }
-    var query=norm(raw);
-    if(!query){ results.innerHTML='<div class="empty"><b>Ready</b>Type a part number, or “back stock” for the refill list.</div>'; return; }
-    var hits=BINS.map(function(e){return {e:e,s:score(e,query)};}).filter(function(x){return x.s>=0;})
+    // A bin code typed in place of a part number lists that bin's
+    // occupants -- the direct way to look up a shared bin.
+    var bq=binQuery(raw), shown={};
+    if(bq){
+      var occ=BINS.filter(function(e){
+        return (e.cab==='A'||e.cab==='B')
+            && (!bq.cab || e.cab===bq.cab)
+            && String(e.bin||'').toUpperCase()===bq.bin; });
+      if(occ.length){
+        addHeader('Bin '+(bq.cab?('C'+bq.cab+'-'):'')+bq.bin+
+                  ' \u2014 '+occ.length+' part'+(occ.length===1?'':'s'));
+        occ.forEach(function(e){ shown[e.id]=1; results.appendChild(card(e,'')); });
+      }
+    }
+    var hits=BINS.map(function(e){return {e:e,s:score(e,query)};})
+      .filter(function(x){return x.s>=0 && !shown[x.e.id];})
       .sort(function(a,b){ return a.s-b.s || (a.e.cab+'').localeCompare(b.e.cab+'')
         || (a.e.bin+'').localeCompare(b.e.bin+'',undefined,{numeric:true}); }).slice(0,50);
-    if(!hits.length){ results.innerHTML='<div class="empty"><b>No match for &ldquo;'+query+'&rdquo;</b>Check the digits, or it may be a bin we haven&rsquo;t added yet.</div>'; return; }
-    hits.forEach(function(h){results.appendChild(card(h.e,query));});
+    if(!hits.length){
+      if(!results.children.length){
+        results.innerHTML='<div class="empty"><b>No match for &ldquo;'+esc(query)+
+          '&rdquo;</b>Check the digits, or it may be a bin we haven&rsquo;t '+
+          'added yet.</div>';
+      }
+      return;
+    }
+    // Last-4 collisions across the two cabinets: every location as a
+    // compact row first, so the answer is on screen before any detail.
+    if(hits.length>1){
+      var heroes=document.createElement('div');
+      heroes.className='heroes';
+      heroes.innerHTML='<div class="heroes-lead">'+hits.length+
+        ' matching locations</div>'+
+        hits.map(function(h){ return heroRow(h.e,query); }).join('');
+      results.appendChild(heroes);
+    }
+    hits.forEach(function(h){ results.appendChild(card(h.e,query)); });
   }
-  function setData(a,live){
-    BINS=a; apiMode=!!live; indexData(); render();
+
+  function setData(a,live,racks){
+    BINS=a; apiMode=!!live;
+    if(racks) RACKS=racks;        // server-defined; never a local copy
+    indexData(); render();
     if(liveNote) liveNote.textContent = apiMode
       ? 'Live — counts sync with the T320 server.'
       : 'Counts show read-only; the +/− buttons and Bin-full toggle go live when deployed to the T320.';
     updateHeaderBtns();
   }
-  q.addEventListener('input',render);
+  // After the 4th digit the answer is rendered but a phone keyboard is
+  // sitting on top of it, so drop focus once the search actually resolves.
+  // Tapping the field again selects what is there, so the next 4 digits
+  // replace the old ones instead of appending to them.
+  var blurredFor=null;
+  q.addEventListener('input',function(){
+    render();
+    var digits=q.value.replace(/[^0-9]/g,'');
+    if(digits.length!==4){ blurredFor=null; return; }
+    if(blurredFor===q.value) return;
+    if(!results.querySelector('.card')) return;
+    blurredFor=q.value;
+    setTimeout(function(){ q.blur(); }, 0);
+  });
+  q.addEventListener('focus',function(){ if(q.value) q.select(); });
+
+  // If the keyboard comes back up, keep the first hero visible. Only the
+  // scroll position moves -- nothing is resized, so the layout never jumps.
+  var vv = window.visualViewport;
+  if(vv){
+    vv.addEventListener('resize', function(){
+      if(document.activeElement !== q) return;
+      setTimeout(function(){
+        var hero = results.querySelector('.hero-row, .hero');
+        if(!hero) return;
+        var over = hero.getBoundingClientRect().bottom - (vv.height + vv.offsetTop);
+        if(over > 0) window.scrollBy(0, over + 8);
+      }, 60);
+    });
+  }
   clr.addEventListener('click',function(){q.value='';q.focus();render();});
 
   var loginScreen=document.getElementById('loginScreen'), pinEl=document.getElementById('pin'),
@@ -540,6 +894,71 @@
   });
 
   // ----------------------------------------------------------- user admin --
+  // Moving a part into an occupied bin: the server answers 409 with the
+  // occupant, and the tech chooses swap, share, or cancel. Nothing is
+  // parked in a random bin to get out of the way any more.
+  var moveScreen=document.getElementById('moveScreen'), mvCab=document.getElementById('mvCab'),
+      mvBin=document.getElementById('mvBin'), mvMsg=document.getElementById('mvMsg'),
+      mvWhich=document.getElementById('mvWhich'),
+      mvOccupied=document.getElementById('mvOccupied'),
+      mvChoices=document.getElementById('mvChoices'),
+      mvConfirm=document.getElementById('mvConfirm'), movingId=null;
+
+  function showMove(e){
+    if(!can('edit_bins')) return;
+    movingId=e.id;
+    mvWhich.textContent=(e.cab==='?' ? 'Back stock, no bin yet'
+                                     : 'Currently C'+e.cab+'-'+e.bin)+' \u00b7 '+e.pn;
+    mvCab.value=(e.cab==='A'||e.cab==='B') ? e.cab : 'A';
+    mvBin.value=''; mvMsg.textContent='';
+    mvOccupied.hidden=true; mvOccupied.innerHTML='';
+    mvChoices.hidden=true; mvConfirm.hidden=true;
+    moveScreen.hidden=false; mvBin.focus();
+  }
+  function hideMove(){ moveScreen.hidden=true; movingId=null; }
+
+  function sendMove(mode, allowUnknown){
+    if(!movingId) return;
+    var body={id:movingId, cab:mvCab.value, targetBin:mvBin.value.trim()};
+    if(mode) body.mode=mode;
+    if(allowUnknown) body.allowUnknownBin=true;
+    mvMsg.textContent='';
+    postJSON('/api/bins/move',body).then(function(res){
+      var d=res.body||{};
+      if(res.status===401){ hideMove(); sessionLost(); return; }
+      if(res.status===200){
+        // A swap returns both sides, so both cards update together.
+        replaceRecord(d.bin); replaceRecord(d.partner);
+        hideMove(); render(); return;
+      }
+      if(res.status===409 && d.code==='occupied'){
+        mvOccupied.hidden=false;
+        mvOccupied.innerHTML='<b>'+esc(d.error||'')+'</b>'+
+          (d.occupants||[]).map(function(o){
+            return '<div class="warn-line">'+esc(o.pn||o.id)+'</div>'; }).join('')+
+          '<div class="mv-ask">Swap the two parts, or put both in this bin?</div>';
+        mvChoices.hidden=false; mvConfirm.hidden=true;
+        return;
+      }
+      if(res.status===409 && d.code==='unknown_bin'){
+        mvOccupied.hidden=false;
+        mvOccupied.innerHTML='<b>'+esc(d.error||'')+'</b>';
+        mvConfirm.hidden=false; mvChoices.hidden=true;
+        return;
+      }
+      mvMsg.textContent=d.error||'Could not move that part.';
+    }).catch(function(){ mvMsg.textContent='Network error \u2014 try again.'; });
+  }
+  document.getElementById('mvSubmit').addEventListener('click',function(){ sendMove(null,false); });
+  document.getElementById('mvSwap').addEventListener('click',function(){ sendMove('swap',true); });
+  document.getElementById('mvShare').addEventListener('click',function(){ sendMove('share',true); });
+  document.getElementById('mvForce').addEventListener('click',function(){ sendMove(null,true); });
+  document.getElementById('mvCancel').addEventListener('click',hideMove);
+  moveScreen.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){ hideMove(); return; }
+    if(e.key==='Enter' && mvChoices.hidden && mvConfirm.hidden) sendMove(null,false);
+  });
+
   var adminScreen=document.getElementById('adminScreen'), adList=document.getElementById('adList'),
       adId=document.getElementById('adId'), adName=document.getElementById('adName'),
       adPin=document.getElementById('adPin'), adPerms=document.getElementById('adPerms'),
@@ -645,7 +1064,7 @@
         if(r.status===401){ sessionLost(); return null; }
         return r.ok?r.json():null;
       })
-      .then(function(d){ if(d&&d.bins&&d.bins.length) setData(d.bins,true); })
+      .then(function(d){ if(d&&d.bins&&d.bins.length) setData(d.bins,true,d.racks); })
       .catch(function(){});
   }
   function fetchStatic(){
