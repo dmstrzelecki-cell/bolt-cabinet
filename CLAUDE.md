@@ -211,6 +211,15 @@ Setting a rack/level is an `edit_bins` action and writes `overrides.json`
 like any other edit, so `adminctl.py export` folds it into the seed with
 everything else. A level that does not belong to the chosen rack is a `400`.
 
+**A part stocked in both cabinets.** A few parts have a bin in Cabinet A
+*and* a bin in Cabinet B, which is two records sharing one part number —
+a search shows both as matching locations. When one pile of back stock
+refills both, give **both** records the same rack/level, but keep the box
+count on **one** of them and put `shared with C<cab>-<bin>` in the other's
+note. Counting the same boxes twice would inflate the back-stock walk list.
+`adminctl.py set-shelf` exists for exactly this: `import-shelves` resolves
+by last 4, which is the thing that is ambiguous here.
+
 ## Physical addressing
 - **Cabinet A** — left door rows **A–C**, main body **D–L**, right door **M–T**.
   (D–L as "main" was inferred, not yet confirmed by the user.)

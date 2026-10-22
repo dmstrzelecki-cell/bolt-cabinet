@@ -1,6 +1,6 @@
 {
- "version": "2026-08-03a",
- "count": 240,
+ "version": "2026-10-22a",
+ "count": 239,
  "bins": [
   {
    "cab": "B",
@@ -2450,19 +2450,6 @@
    "zone": "Right Door",
    "verify": false,
    "id": "A-T4"
-  },
-  {
-   "cab": "?",
-   "bin": "\u2014",
-   "row": "",
-   "col": "",
-   "pn": "\u20265044",
-   "zone": "Back stock \u2014 no bin",
-   "verify": true,
-   "boxes": 8,
-   "binFull": false,
-   "boxNote": "No bin found \u2014 needs full part # + a bin",
-   "id": "NB-5044"
   },
   {
    "cab": "B",

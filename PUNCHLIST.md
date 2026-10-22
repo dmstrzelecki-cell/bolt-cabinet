@@ -107,9 +107,11 @@
   dropdowns on each card — rack, then level.
 
 ## Data: back stock with no home (need full part # + a bin)
-- **…5044** — 8 boxes, no match anywhere.
-  *(Now fixable in the app: search it, hit **Edit**, set the full part number
-  and a bin. The record keeps its box count.)*
+- ~~**…5044** — 8 boxes, no match anywhere.~~ **Closed 2026-10-22.** It was
+  11605044 all along: someone had already added the real record at **CB-O8**,
+  so the placeholder `NB-5044` was a phantom holding the same stock twice.
+  CB-O8 now carries the shelf location (Rack 1 · Top) and the counted 7
+  boxes, and `NB-5044` has been removed from the seed.
 
 ## Data: row-width unknowns (is there one more bin on the end?)
 - CA main **E8?**
