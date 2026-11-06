@@ -1,0 +1,10 @@
+# blocked: a search containing any of these words or phrases shows a calm
+#          'ask a grown-up' message instead of results. Edited on /parent.
+# synonyms: word -> words that should also match (works both ways).
+blocked: [porn, porno, xxx, nsfw, nude, nudes, naked, hentai, gore, sexy, onlyfans]
+synonyms:
+  kitten: [cat]
+  puppy: [dog]
+  maths: [math]
+  ballerina: [ballet]
+  planet: [planets]

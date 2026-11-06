@@ -1,0 +1,7 @@
+[Unit]
+Description=Family Search nightly backup (config, SQLite, library files)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/family-search/scripts/backup.sh
+Nice=10

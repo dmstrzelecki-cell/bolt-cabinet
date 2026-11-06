@@ -1,0 +1,65 @@
+#!/usr/sbin/nft -f
+# Family Search firewall. Rendered by scripts/install.sh from site.env into
+# /etc/nftables.d/family-search.nft. Default deny inbound; outbound limited
+# per service user.
+#
+#   inbound  : 8080 only from the cloudflared host; SSH only from the admin source
+#   fs-crawl : DNS to the resolver, then HTTP/HTTPS to PUBLIC addresses only
+#   fs-web   : DNS, Immich on 2283, HTTPS to public addresses (Access signing keys)
+#   meilisearch : nothing but loopback
+#   anyone else : may not reach Immich (only fs-web may)
+
+table inet familysearch
+delete table inet familysearch
+
+table inet familysearch {
+  set private4 {
+    type ipv4_addr; flags interval
+    elements = { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16,
+                 172.16.0.0/12, 192.0.0.0/24, 192.0.2.0/24, 192.88.99.0/24, 192.168.0.0/16,
+                 198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24, 224.0.0.0/4, 240.0.0.0/4 }
+  }
+  set private6 {
+    type ipv6_addr; flags interval
+    elements = { ::/127, ::ffff:0:0/96, 64:ff9b::/96, 100::/64, 2001::/32, 2001:db8::/32,
+                 2002::/16, fc00::/7, fe80::/10, fec0::/10, ff00::/8 }
+  }
+
+  chain input {
+    type filter hook input priority filter; policy drop;
+    iif "lo" accept
+    ct state established,related accept
+    ct state invalid drop
+    @APP_RULE@
+    @SSH_RULE@
+    ip saddr 192.168.0.0/24 icmp type echo-request limit rate 5/second accept
+    icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert, nd-router-advert, nd-router-solicit } accept
+  }
+
+  chain output {
+    type filter hook output priority filter; policy accept;
+    oif "lo" accept
+    ct state established,related accept
+    meta skuid "meilisearch" drop
+    meta skuid "fs-crawl" jump crawler_out
+    meta skuid "fs-web" jump web_out
+    ip daddr @IMMICH_IP@ tcp dport 2283 drop
+  }
+
+  chain crawler_out {
+    ip daddr @DNS_IP@ meta l4proto { tcp, udp } th dport 53 accept
+    ip daddr @private4 drop
+    ip6 daddr @private6 drop
+    tcp dport { 80, 443 } accept
+    drop
+  }
+
+  chain web_out {
+    ip daddr @DNS_IP@ meta l4proto { tcp, udp } th dport 53 accept
+    ip daddr @IMMICH_IP@ tcp dport 2283 accept
+    ip daddr @private4 drop
+    ip6 daddr @private6 drop
+    tcp dport 443 accept
+    drop
+  }
+}

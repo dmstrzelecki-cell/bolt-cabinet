@@ -1,0 +1,22 @@
+# Home-page tiles, in display order. Edited by the /parent page.
+#
+# action:  search    -> run `query` (optionally narrowed by categories/hosts)
+#          filter    -> narrow results to categories and/or hosts
+#          open_host -> open https://<first host>/ (must be approved)
+#          photos    -> open the Photos tab
+#          random    -> open a random indexed page from `hosts`
+# include_library: true also shows parent library items.
+curious_hosts: [www.wonderopolis.org]
+tiles:
+  - {id: homework, label: Homework, icon: pencil, action: filter, categories: [homework, reference, writing]}
+  - {id: science, label: Science, icon: flask, action: filter, categories: [science, animals-science]}
+  - {id: space, label: Space, icon: rocket, action: filter, categories: [space]}
+  - {id: animals, label: Animals, icon: paw, action: search, query: animals, categories: [animals-science]}
+  - {id: history, label: History, icon: column, action: filter, categories: [history, history-science]}
+  - {id: math, label: Math, icon: calculator, action: filter, categories: [math]}
+  - {id: words, label: Words, icon: letters, action: filter, hosts: [www.merriam-webster.com]}
+  - {id: news, label: News, icon: news, action: filter, categories: [news]}
+  - {id: ballet, label: Ballet, icon: ballet, action: filter, categories: [ballet]}
+  - {id: curious, label: Curious, icon: lightbulb, action: random, hosts: [www.wonderopolis.org]}
+  - {id: library, label: Library, icon: library, action: filter, categories: [library], include_library: true}
+  - {id: photos, label: Family Photos, icon: camera, action: photos}

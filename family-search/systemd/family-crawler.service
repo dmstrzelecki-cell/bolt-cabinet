@@ -1,0 +1,38 @@
+[Unit]
+Description=Family Search crawler (approved hosts only)
+After=network-online.target meilisearch.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fs-crawl
+Group=fs-crawl
+SupplementaryGroups=fsearch
+WorkingDirectory=/opt/family-search
+EnvironmentFile=/etc/family-search/crawler.env
+ExecStart=/opt/family-search/venv/bin/python /opt/family-search/crawler/crawler.py
+ReadWritePaths=/var/lib/family-search/crawler /var/lib/family-search/spool
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=1G
+Nice=10
+IOSchedulingClass=idle
+RuntimeMaxSec=6h
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0027

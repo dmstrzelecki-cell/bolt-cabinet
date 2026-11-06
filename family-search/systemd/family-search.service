@@ -1,0 +1,44 @@
+[Unit]
+Description=Family Search backend (FastAPI, port 8080)
+After=network-online.target meilisearch.service
+Wants=network-online.target meilisearch.service
+
+[Service]
+User=fs-web
+Group=fs-web
+SupplementaryGroups=fsearch
+WorkingDirectory=/opt/family-search
+EnvironmentFile=/etc/family-search/backend.env
+# --no-access-log: request lines contain search queries, and the child's
+# searches are never stored unless a parent turns history on.
+ExecStart=/opt/family-search/venv/bin/uvicorn --factory familysearch.main:create_app \
+  --app-dir /opt/family-search/backend --host 0.0.0.0 --port 8080 \
+  --no-access-log --no-server-header --no-proxy-headers --workers 1
+ReadWritePaths=/var/lib/family-search/app /var/lib/family-search/spool /opt/family-search/config
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=1G
+TasksMax=256
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

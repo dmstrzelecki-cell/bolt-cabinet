@@ -1,0 +1,58 @@
+.parent { display: block; }
+.ptop { max-width: 980px; margin: 0 auto; padding: 16px; }
+.ptop h1 { margin: 8px 0 0; font-size: 26px; }
+.ptop p { margin: 4px 0 0; }
+.brand.small { justify-content: flex-start; gap: 8px; font-weight: 700; color: var(--link); }
+.brand.small .brand-mark { width: 34px; height: 34px; }
+.ptabs { display: flex; gap: 4px; overflow-x: auto; max-width: 980px; margin: 0 auto; padding: 0 16px;
+         border-bottom: 1px solid var(--border); scrollbar-width: none; }
+.ptabs button { border: 0; background: none; min-height: 44px; padding: 8px 12px; white-space: nowrap;
+                cursor: pointer; color: var(--muted); font-weight: 700; border-bottom: 3px solid transparent; }
+.ptabs button[aria-pressed="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.badge { display: inline-block; min-width: 22px; padding: 0 6px; border-radius: 11px; font-size: 13px;
+         background: var(--secondary); color: var(--surface); text-align: center; }
+.badge.warn { background: var(--accent); color: var(--accent-text); }
+.pmain { max-width: 980px; margin: 0 auto; padding: 16px 16px 48px; }
+.sec h2 { margin-top: 8px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+        margin: 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.card h3 { margin: 0; font-size: 17px; }
+.card label, .lbl { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
+.card label.check, label.check { flex-direction: row; align-items: center; gap: 10px; min-height: 44px; }
+.card input:not([type=checkbox]), .card textarea, .card select, .pmain select, #fl-copy, .tile-edit input, .tile-edit select {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-height: 44px;
+  background: var(--bg); width: 100%; max-width: 100%;
+}
+input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--secondary); }
+#fl-copy { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 720px) { .form-grid { grid-template-columns: 1fr 1fr 1fr; } .form-grid h3, .form-actions { grid-column: 1 / -1; } }
+.cards3 { display: grid; grid-template-columns: 1fr; gap: 0 12px; }
+@media (min-width: 900px) { .cards3 { grid-template-columns: repeat(3, 1fr); } }
+.row-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.items { list-style: none; margin: 0; padding: 0; }
+.item { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
+        margin: 8px 0; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; overflow-wrap: anywhere; }
+.item .grow { flex: 1 1 260px; min-width: 0; }
+.item .title { font-weight: 700; }
+.item .meta { color: var(--muted); font-size: 13px; }
+.item .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.item .btn { padding: 6px 14px; font-size: 14px; }
+.item.off { opacity: .65; }
+.pill { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 800;
+        text-transform: uppercase; letter-spacing: .04em; background: var(--border); color: var(--text); }
+.pill.ok { background: color-mix(in srgb, var(--secondary) 22%, transparent); color: var(--secondary); }
+.pill.bad { background: var(--warn-bg); color: var(--warn-text); }
+.checklist { list-style: none; padding: 0; }
+.checklist li { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.checklist code { font-size: 14px; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 60;
+         background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 14px; max-width: calc(100vw - 32px); }
+.toast.bad { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--accent); }
+table.audit { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.audit td, table.audit th { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.audit-wrap { overflow-x: auto; }
+.tile-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (min-width: 720px) { .tile-edit { grid-template-columns: repeat(4, 1fr); } }
+.tile-edit label { display: flex; flex-direction: column; font-size: 13px; font-weight: 600; gap: 2px; }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .92em; }

@@ -1,0 +1,9 @@
+[Unit]
+Description=Nightly Family Search crawl (each host refreshes weekly on its own night)
+
+[Timer]
+OnCalendar=*-*-* 01:10
+RandomizedDelaySec=40min
+
+[Install]
+WantedBy=timers.target

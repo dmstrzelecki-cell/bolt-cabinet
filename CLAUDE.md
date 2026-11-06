@@ -33,6 +33,9 @@ permissions.
 - `server/unit/` — the daily-backup systemd timer. The app's own
   `bolt-cabinet.service` is **not** tracked here.
 - `PUNCHLIST.md` — open data gaps and carried-forward risks.
+- `family-search/` — a **separate app** (the private family search engine for
+  `search.thestrzs.net`, its own CT). Shares nothing with the bolt app; read
+  `family-search/CLAUDE.md` before touching it.
 
 **Server-owned, gitignored, live in `/opt/bolt-cabinet/` — never commit:**
 

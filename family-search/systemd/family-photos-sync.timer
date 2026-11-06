@@ -1,0 +1,9 @@
+[Unit]
+Description=Nightly Family Search photo sync
+
+[Timer]
+OnCalendar=*-*-* 02:37
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

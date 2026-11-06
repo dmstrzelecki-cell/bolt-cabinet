@@ -1,0 +1,40 @@
+[Unit]
+Description=Meilisearch for Family Search (localhost only)
+After=network.target
+
+[Service]
+User=meilisearch
+Group=meilisearch
+EnvironmentFile=/etc/family-search/meilisearch.env
+ExecStart=/usr/local/bin/meilisearch --http-addr 127.0.0.1:7700 --env production --no-analytics \
+  --db-path /var/lib/meilisearch/data --dump-dir /var/lib/meilisearch/dumps \
+  --snapshot-dir /var/lib/meilisearch/snapshots
+WorkingDirectory=/var/lib/meilisearch
+ReadWritePaths=/var/lib/meilisearch
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=3G
+LimitNOFILE=65535
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

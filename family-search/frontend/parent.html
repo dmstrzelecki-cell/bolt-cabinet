@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Parent settings</title>
+<link rel="icon" href="/static/icons/icon-192.png" type="image/png">
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/parent.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/static/parent.js" defer></script>
+</head>
+<body class="parent">
+<header class="ptop">
+  <a class="brand small" href="/"><img class="brand-mark" src="/static/icons/mark.svg" alt="" width="34" height="34"><span>Back to search</span></a>
+  <h1>Parent settings</h1>
+  <p class="muted" id="who"></p>
+</header>
+
+<nav class="ptabs" id="ptabs" aria-label="Sections">
+  <button type="button" data-sec="requests">Requests <span class="badge" id="req-badge" hidden></span></button>
+  <button type="button" data-sec="sites">Sites</button>
+  <button type="button" data-sec="familylink">Family Link <span class="badge warn" id="fl-badge" hidden></span></button>
+  <button type="button" data-sec="library">Library</button>
+  <button type="button" data-sec="photos">Photos</button>
+  <button type="button" data-sec="filters">Filters</button>
+  <button type="button" data-sec="tiles">Home page</button>
+  <button type="button" data-sec="settings">Privacy</button>
+  <button type="button" data-sec="audit">Audit</button>
+</nav>
+
+<main class="pmain" id="pmain" tabindex="-1">
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <section id="sec-requests" class="sec" aria-labelledby="h-req">
+    <h2 id="h-req">Ask-a-grown-up requests</h2>
+    <p class="muted">Saved only when she taps <b>Ask a grown-up</b>. Approving a website request does not add it — use <b>Add as site</b>.</p>
+    <div id="requests"></div>
+  </section>
+
+  <section id="sec-sites" class="sec" aria-labelledby="h-sites" hidden>
+    <h2 id="h-sites">Approved sites</h2>
+    <p class="muted">Exact hostnames only — <code>nasa.gov</code> does not approve <code>spaceplace.nasa.gov</code>. Removing or disabling a site hides its results immediately.</p>
+    <div class="row-actions">
+      <button type="button" class="btn btn-secondary" id="crawl-all">Crawl all due sites now</button>
+      <span class="muted" id="crawl-info"></span>
+    </div>
+    <form class="card form-grid" id="site-form">
+      <h3>Add a site</h3>
+      <label>Host <input name="host" required placeholder="www.example.org" autocapitalize="off" spellcheck="false"></label>
+      <label>Category <input name="category" required list="categories" placeholder="reference"></label>
+      <label>Display name <input name="name" maxlength="60" placeholder="optional"></label>
+      <label>Page cap <input name="page_cap" type="number" min="1" max="100000" value="2000"></label>
+      <label>Boost (0–5) <input name="boost" type="number" min="0" max="5" value="0"></label>
+      <label class="check"><input name="crawl" type="checkbox" checked> Crawl and index this site</label>
+      <div class="form-actions"><button class="btn btn-primary">Add site</button></div>
+    </form>
+    <datalist id="categories"></datalist>
+    <div id="sites"></div>
+  </section>
+
+  <section id="sec-familylink" class="sec" aria-labelledby="h-fl" hidden>
+    <h2 id="h-fl">Family Link approvals</h2>
+    <p class="muted">Chrome on her phone only opens hosts approved in Family Link. Approve every host below, then tick it here so new ones stand out.</p>
+    <label for="fl-copy" class="lbl">Copy-ready list</label>
+    <textarea id="fl-copy" rows="8" readonly></textarea>
+    <div class="row-actions"><button type="button" class="btn btn-secondary" id="fl-copy-btn">Copy list</button></div>
+    <ul class="checklist" id="familylink"></ul>
+  </section>
+
+  <section id="sec-library" class="sec" aria-labelledby="h-lib" hidden>
+    <h2 id="h-lib">Family library</h2>
+    <div class="cards3">
+      <form class="card" id="lib-url">
+        <h3>Add one approved link</h3>
+        <label>Link (https://) <input name="url" type="url" required placeholder="https://"></label>
+        <label>Title <input name="title" maxlength="120"></label>
+        <label>Note <textarea name="note" rows="2" maxlength="5000"></textarea></label>
+        <button class="btn btn-primary">Add link</button>
+      </form>
+      <form class="card" id="lib-note">
+        <h3>Write a note</h3>
+        <label>Title <input name="title" required maxlength="120"></label>
+        <label>Note <textarea name="note" rows="4" required maxlength="5000"></textarea></label>
+        <button class="btn btn-primary">Add note</button>
+      </form>
+      <form class="card" id="lib-pdf">
+        <h3>Upload a PDF (25 MB max)</h3>
+        <label>Title <input name="title" required maxlength="120"></label>
+        <label>Note <textarea name="note" rows="2" maxlength="5000"></textarea></label>
+        <label>File <input name="file" type="file" accept="application/pdf,.pdf" required></label>
+        <button class="btn btn-primary">Upload</button>
+      </form>
+    </div>
+    <div id="library"></div>
+  </section>
+
+  <section id="sec-photos" class="sec" aria-labelledby="h-ph" hidden>
+    <h2 id="h-ph">Family photo albums</h2>
+    <p class="muted" id="immich-note"></p>
+    <p class="muted">Share the album with the <code>family-search</code> Immich user first, then add its id (the last part of the album's address in Immich). Removing an album hides its photos immediately.</p>
+    <form class="card form-grid" id="album-form">
+      <label>Album id <input name="id" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false" autocapitalize="off"></label>
+      <label>Label <input name="name" maxlength="80" placeholder="Beach 2025"></label>
+      <div class="form-actions"><button class="btn btn-primary">Allow album</button></div>
+    </form>
+    <div class="row-actions"><button type="button" class="btn btn-secondary" id="sync">Sync albums now</button></div>
+    <div id="albums"></div>
+  </section>
+
+  <section id="sec-filters" class="sec" aria-labelledby="h-f" hidden>
+    <h2 id="h-f">Blocked words and synonyms</h2>
+    <form class="card" id="filters-form">
+      <label>Blocked words or phrases — one per line
+        <textarea name="blocked" rows="8"></textarea></label>
+      <label>Synonyms — one per line, like <code>kitten: cat, kitty</code>
+        <textarea name="synonyms" rows="6"></textarea></label>
+      <button class="btn btn-primary">Save filters</button>
+    </form>
+  </section>
+
+  <section id="sec-tiles" class="sec" aria-labelledby="h-t" hidden>
+    <h2 id="h-t">Home page tiles</h2>
+    <p class="muted">Changes appear on her home page as soon as you press Save.</p>
+    <div id="tiles"></div>
+    <div class="row-actions">
+      <button type="button" class="btn btn-ghost" id="tile-add">Add a tile</button>
+      <button type="button" class="btn btn-primary" id="tiles-save">Save tiles</button>
+    </div>
+  </section>
+
+  <section id="sec-settings" class="sec" aria-labelledby="h-s" hidden>
+    <h2 id="h-s">Privacy</h2>
+    <label class="check card"><input type="checkbox" id="store-history"> Keep a history of her searches (off by default; turning it off deletes the history)</label>
+    <div id="history"></div>
+  </section>
+
+  <section id="sec-audit" class="sec" aria-labelledby="h-a" hidden>
+    <h2 id="h-a">Audit log</h2>
+    <label class="lbl">Show
+      <select id="audit-kind">
+        <option value="">everything</option><option value="parent">parent changes</option>
+        <option value="crawl">crawls</option><option value="sync">photo syncs</option>
+        <option value="denied">denied access</option>
+      </select></label>
+    <div id="audit"></div>
+  </section>
+</main>
+</body>
+</html>

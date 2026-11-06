@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+tests/e2e/shots/
+config/.history/

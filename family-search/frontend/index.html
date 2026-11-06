@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<title>Strz Search</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" href="/static/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/theme.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body class="is-home">
+<a class="skip" href="#main">Skip to results</a>
+
+<header class="top" id="top">
+  <a class="brand" href="/" id="brand" aria-label="Home">
+    <img class="brand-mark" src="/static/icons/mark.svg" alt="" width="64" height="64">
+    <span class="wordmark"><span class="wm-a" id="wm-a">strz</span><span class="wm-b" id="wm-b">search</span></span>
+  </a>
+  <p class="tagline" id="tagline"></p>
+
+  <form class="searchbar" id="search-form" role="search" autocomplete="off">
+    <div class="search-box" id="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>
+      <input id="q" name="q" type="search" maxlength="200" enterkeyhint="search"
+             placeholder="What do you want to find?" aria-label="Search"
+             role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest"
+             autocapitalize="off" autocorrect="on" spellcheck="true">
+      <button type="button" class="clear" id="clear" aria-label="Clear search" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <ul class="suggest" id="suggest" role="listbox" hidden></ul>
+    <div class="buttons home-only">
+      <button type="submit" class="btn btn-primary">Search</button>
+      <button type="button" class="btn btn-secondary" id="curious">I'm Curious</button>
+    </div>
+  </form>
+
+  <nav class="tabs results-only" id="tabs" aria-label="Result types">
+    <button type="button" data-type="all" aria-pressed="true">All</button>
+    <button type="button" data-type="web" aria-pressed="false">Web</button>
+    <button type="button" data-type="photos" aria-pressed="false">Photos</button>
+    <button type="button" data-type="library" aria-pressed="false">Library</button>
+  </nav>
+</header>
+
+<main id="main" tabindex="-1">
+  <section class="tiles home-only" id="tiles" aria-label="Quick searches"></section>
+
+  <section class="results results-only" id="results" aria-live="polite">
+    <div class="filter-chip" id="filter-chip" hidden>
+      <span id="filter-label"></span>
+      <button type="button" id="filter-clear" aria-label="Clear filter">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="status" class="status" hidden></div>
+    <div id="photo-strip" class="photo-strip" hidden></div>
+    <ol id="list" class="list"></ol>
+    <div id="photo-grid" class="photo-grid" hidden></div>
+    <nav id="pager" class="pager" aria-label="Pages" hidden></nav>
+  </section>
+</main>
+
+<footer class="foot">
+  <button type="button" class="link-btn" id="ask-open">Ask a grown-up</button>
+</footer>
+
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="Photo" hidden>
+  <button type="button" class="viewer-close" id="viewer-close" aria-label="Close">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <button type="button" class="viewer-nav prev" id="viewer-prev" aria-label="Previous photo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+  </button>
+  <figure>
+    <img id="viewer-img" alt="">
+    <figcaption id="viewer-cap"></figcaption>
+  </figure>
+  <button type="button" class="viewer-nav next" id="viewer-next" aria-label="Next photo">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </button>
+</div>
+
+<dialog class="sheet" id="ask">
+  <form method="dialog" id="ask-form">
+    <h2>Ask a grown-up</h2>
+    <p class="muted">Tell us what you were looking for. A grown-up will take a look.</p>
+    <label for="ask-text">What do you want to find?</label>
+    <textarea id="ask-text" maxlength="200" rows="3" required></textarea>
+    <label class="check"><input type="checkbox" id="ask-site"> It's a website I want to use</label>
+    <div class="sheet-actions">
+      <button type="button" class="btn btn-ghost" id="ask-cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="ask-send">Send</button>
+    </div>
+    <p class="ask-done" id="ask-done" hidden>Sent! A grown-up will take a look.</p>
+  </form>
+</dialog>
+
+<dialog class="sheet" id="note">
+  <form method="dialog">
+    <h2 id="note-title"></h2>
+    <p id="note-body" class="note-body"></p>
+    <p id="note-link" hidden></p>
+    <div class="sheet-actions"><button class="btn btn-primary">Close</button></div>
+  </form>
+</dialog>
+
+<noscript><p class="status">Strz Search needs JavaScript turned on.</p></noscript>
+</body>
+</html>

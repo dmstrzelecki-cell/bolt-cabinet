@@ -1,0 +1,6 @@
+# Immich albums the family-search user may show. Removing an album here
+# revokes its photos immediately. Edited by the /parent page.
+#
+# Each entry: {id: <album UUID from the Immich album URL>, name: <label>}
+# The album must also be shared with the `family-search` Immich user.
+albums: []

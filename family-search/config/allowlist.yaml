@@ -1,0 +1,36 @@
+# Approved hosts. Exact hostnames only: a parent domain does NOT approve
+# its subdomains. Edited by the /parent page; a dated copy of every
+# previous version is kept in config/.history/.
+#
+# Per host:  category (required) · crawl (default true) · enabled (default true)
+#            page_cap (default 2000) · boost 0-5 (default 0) · name (display)
+#            schedule_day 0=Mon..6=Sun (default: spread by hash)
+#            source: crawl | wikimedia-dump
+hosts:
+  www.kiddle.co: {category: search, crawl: false}
+  kids.kiddle.co: {category: reference}
+  www.sweetsearch.com: {category: search, crawl: false}
+  www.britannica.com: {category: reference, boost: 2, name: Britannica}
+  kids.britannica.com: {category: reference, boost: 2, name: Britannica Kids}
+  simple.wikipedia.org: {category: reference, page_cap: 50000, boost: 1, name: Simple Wikipedia, source: wikimedia-dump}
+  www.merriam-webster.com: {category: reference, boost: 1, name: Merriam-Webster}
+  www.factmonster.com: {category: reference, name: Fact Monster}
+  www.ducksters.com: {category: reference, name: Ducksters}
+  www.mel.org: {category: library, name: MeL}
+  www.rhpl.org: {category: library, name: RHPL}
+  kids.nationalgeographic.com: {category: animals-science, boost: 1, name: Nat Geo Kids}
+  www.nasa.gov: {category: space, boost: 1, name: NASA}
+  spaceplace.nasa.gov: {category: space, boost: 1, name: NASA Space Place}
+  www.si.edu: {category: history-science, name: Smithsonian}
+  www.snexplores.org: {category: science, name: Science News Explores}
+  kids.frontiersin.org: {category: science, name: Frontiers for Young Minds}
+  www.wonderopolis.org: {category: curiosity, name: Wonderopolis}
+  www.khanacademy.org: {category: homework, name: Khan Academy}
+  www.mathsisfun.com: {category: math, name: Math is Fun}
+  www.desmos.com: {category: math, crawl: false, name: Desmos}
+  www.icivics.org: {category: civics, name: iCivics}
+  www.loc.gov: {category: history, name: Library of Congress}
+  owl.purdue.edu: {category: writing, name: Purdue OWL}
+  www.timeforkids.com: {category: news, name: TIME for Kids}
+  www.newsforkids.net: {category: news, name: News for Kids}
+  www.abt.org: {category: ballet, name: American Ballet Theatre}

@@ -1,0 +1,33 @@
+{
+  "site_name": "Strz Search",
+  "tagline": "Our family's corner of the internet",
+  "wordmark": ["strz", "search"],
+  "light": {
+    "bg": "#fbf7f2",
+    "surface": "#ffffff",
+    "text": "#1b2a4a",
+    "muted": "#5a6478",
+    "accent": "#c4492f",
+    "accent-text": "#ffffff",
+    "secondary": "#1f7a70",
+    "link": "#1d4fb8",
+    "border": "#e4dcd2",
+    "focus": "#1f7a70",
+    "warn-bg": "#fff1e6",
+    "warn-text": "#7a2e12"
+  },
+  "dark": {
+    "bg": "#141a26",
+    "surface": "#1d2535",
+    "text": "#eef1f7",
+    "muted": "#a7b0c2",
+    "accent": "#ff8a73",
+    "accent-text": "#1b1410",
+    "secondary": "#5cc8b8",
+    "link": "#8fb4ff",
+    "border": "#2f3a50",
+    "focus": "#5cc8b8",
+    "warn-bg": "#3a2418",
+    "warn-text": "#ffd9c4"
+  }
+}
