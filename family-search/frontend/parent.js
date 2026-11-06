@@ -8,8 +8,6 @@ let S = null;              // last /api/parent/state
 let tilesDraft = [];
 const ICONS = ["book", "pencil", "flask", "rocket", "paw", "column", "calculator", "letters", "news",
   "ballet", "lightbulb", "library", "camera", "globe", "star", "music"];
-const ACTIONS = { filter: "Filter results", search: "Run a search", photos: "Open Photos",
-  random: "Random page", open_host: "Open a site" };
 
 function el(tag, props = {}, ...children) {
   const n = document.createElement(tag);
@@ -163,8 +161,10 @@ function wireForms() {
     act(() => api("/api/parent/filters", { blocked, synonyms }), "Filters saved.");
   });
   $("tile-add").addEventListener("click", () => {
-    tilesDraft.push({ id: `tile-${tilesDraft.length + 1}`, label: "New tile", icon: "star",
-      action: "filter", categories: [], hosts: [], query: "", hidden: false, include_library: false });
+    let n = tilesDraft.length + 1;
+    while (tilesDraft.some((x) => x.id === `tile-${n}`)) n++;
+    tilesDraft.push({ id: `tile-${n}`, label: "New tile", icon: "star", action: "open_url", url: "",
+      categories: [], hosts: [], sections: [], query: "", hidden: false, include_library: false });
     renderTiles();
   });
   $("tiles-save").addEventListener("click", () =>
@@ -331,50 +331,94 @@ function renderFilters() {
 }
 
 /* ------------------------------------------------------------- tiles */
+const MODES = [
+  ["broad", "Broad", "Results from a list of sites, shown in our search"],
+  ["concise", "Concise", "Opens one page directly"],
+  ["photos", "Photos", "Opens the family photos"],
+  ["random", "Surprise", "Opens a random page from a site"],
+];
+const modeOf = (t) => (t.action === "filter" || t.action === "search") ? "broad"
+  : (t.action === "open_url" || t.action === "open_host") ? "concise" : t.action;
+
+function approvedHost(url) {
+  try {
+    const h = new URL(url.includes("://") ? url : "https://" + url).hostname.toLowerCase();
+    return S.sites.some((x) => x.host === h && x.enabled);
+  } catch (_) { return false; }
+}
+
 function renderTiles() {
   const ul = el("ul", { class: "items" });
   tilesDraft.forEach((t, i) => {
+    const mode = modeOf(t);
     const input = (name, value, attrs = {}) => {
       const n = el("input", { value: value ?? "", ...attrs });
       n.addEventListener("input", () => {
         if (name === "categories" || name === "hosts")
-          t[name] = n.value.split(",").map((s) => s.trim()).filter(Boolean);
+          t[name] = n.value.split(",").map((x) => x.trim()).filter(Boolean);
         else t[name] = n.value;
+        if (name === "query") t.action = n.value.trim() ? "search" : "filter";
       });
       return n;
     };
     const iconSel = el("select", {}, ...ICONS.map((x) => el("option", { value: x, text: x })));
     iconSel.value = t.icon;
     iconSel.addEventListener("change", () => { t.icon = iconSel.value; });
-    const actSel = el("select", {}, ...Object.entries(ACTIONS).map(([k, v]) => el("option", { value: k, text: v })));
-    actSel.value = t.action;
-    actSel.addEventListener("change", () => { t.action = actSel.value; });
-    const lib = el("input", { type: "checkbox", checked: !!t.include_library });
-    lib.addEventListener("change", () => { t.include_library = lib.checked; });
+    const setMode = (m) => {
+      if (m === "broad") t.action = (t.query || "").trim() ? "search" : "filter";
+      else if (m === "concise") t.action = "open_url";
+      else t.action = m;
+      renderTiles();
+    };
+    const modeSwitch = el("div", { class: "modes", role: "radiogroup", "aria-label": `${t.label} tile type` },
+      ...MODES.map(([m, label, help]) => el("button", { type: "button", role: "radio",
+        class: "mode" + (m === mode ? " on" : ""), "aria-checked": String(m === mode), title: help,
+        on: { click: () => setMode(m) } }, el("b", { text: label }), el("span", { text: help }))));
+
+    let fields;
+    if (mode === "broad") {
+      const lib = el("input", { type: "checkbox", checked: !!t.include_library });
+      lib.addEventListener("change", () => { t.include_library = lib.checked; });
+      const sec = el("textarea", { rows: String(Math.max(2, (t.sections || []).length + 1)), spellcheck: "false" });
+      sec.value = (t.sections || []).join("\n");
+      sec.addEventListener("input", () => {
+        t.sections = sec.value.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+      });
+      fields = [
+        el("label", {}, "Categories (comma)", input("categories", (t.categories || []).join(", "))),
+        el("label", {}, "Whole sites (comma)", input("hosts", (t.hosts || []).join(", "))),
+        el("label", { class: "wide" }, "Sections — one link per line; every page under it counts (e.g. https://kids.nationalgeographic.com/animals/)", sec),
+        el("label", {}, "Start with these words (optional)", input("query", t.query)),
+        el("label", { class: "check" }, lib, "Include family library"),
+      ];
+    } else if (mode === "concise") {
+      const link = input("url", t.url || "", { type: "url", placeholder: "https://www.dictionary.com/", spellcheck: "false" });
+      const warn = el("div", { class: "meta" });
+      const check = () => {
+        warn.replaceChildren(!t.url ? "" : approvedHost(t.url)
+          ? el("span", { class: "pill ok", text: "site approved — tile shows on her home page" })
+          : el("span", { class: "pill bad", text: "site not approved yet — add it under Sites, or the tile stays hidden" }));
+      };
+      link.addEventListener("input", check);
+      check();
+      fields = [el("label", { class: "wide" }, "The one page this tile opens", link), el("div", { class: "wide" }, warn)];
+    } else if (mode === "random") {
+      fields = [el("label", { class: "wide" }, "Pick from these sites (comma)", input("hosts", (t.hosts || []).join(", ")))];
+    } else {
+      fields = [el("p", { class: "meta wide", text: "Opens the Photos tab." })];
+    }
+
     const move = (d) => { const j = i + d; if (j < 0 || j >= tilesDraft.length) return;
       [tilesDraft[i], tilesDraft[j]] = [tilesDraft[j], tilesDraft[i]]; renderTiles(); };
     ul.append(el("li", { class: "item" + (t.hidden ? " off" : "") },
       el("div", { class: "grow" },
         el("div", { class: "title", text: `${i + 1}. ${t.label}${t.hidden ? " (hidden)" : ""}` }),
-        tileCountLine(t),
+        mode === "broad" ? tileCountLine(t) : null,
+        modeSwitch,
         el("div", { class: "tile-edit" },
-          el("label", {}, "Id", input("id", t.id)),
           el("label", {}, "Label", input("label", t.label, { maxlength: "24" })),
           el("label", {}, "Icon", iconSel),
-          el("label", {}, "Action", actSel),
-          el("label", {}, "Categories (comma)", input("categories", (t.categories || []).join(", "))),
-          el("label", {}, "Whole sites (comma)", input("hosts", (t.hosts || []).join(", "))),
-          el("label", { class: "wide" }, "Sections — one page link per line; every page under it counts (e.g. https://kids.nationalgeographic.com/animals/)",
-            (() => {
-              const ta = el("textarea", { rows: String(Math.max(2, (t.sections || []).length + 1)), spellcheck: "false" });
-              ta.value = (t.sections || []).join("\n");
-              ta.addEventListener("input", () => {
-                t.sections = ta.value.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
-              });
-              return ta;
-            })()),
-          el("label", {}, "Search words", input("query", t.query)),
-          el("label", { class: "check" }, lib, "Include library"))),
+          ...fields)),
       el("div", { class: "btns" },
         btn("↑", () => move(-1)), btn("↓", () => move(1)),
         btn(t.hidden ? "Show" : "Hide", () => { t.hidden = !t.hidden; renderTiles(); }),

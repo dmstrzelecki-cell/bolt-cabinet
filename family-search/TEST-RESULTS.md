@@ -13,8 +13,8 @@ are simulated with in-process fakes; Chromium is real.
 ## Summary
 | Suite | Result |
 |---|---|
-| `pytest tests/` — unit + acceptance with fakes | **65 passed, 0 failed** |
-| `tests/e2e/run.sh` — real Chromium at 360 px against the real app | **27 passed, 0 failed** |
+| `pytest tests/` — unit + acceptance with fakes | **66 passed, 0 failed** |
+| `tests/e2e/run.sh` — real Chromium at 360 px against the real app | **31 passed, 0 failed** |
 | `pip-audit` on `backend/requirements.lock` | **No known vulnerabilities found** (python-multipart 0.0.20 was flagged and bumped to 0.0.33) |
 | `shellcheck -S warning scripts/*.sh` | clean |
 | `nft -c` on the rendered firewall | syntax OK |
@@ -43,7 +43,7 @@ are simulated with in-process fakes; Chromium is real.
 | Removing a host hides its results before the next page load | PASS (local) | `test_removing_a_host_hides_results_before_next_page_load` (works even with index deletes disabled) |
 | Blocked terms produce the safe message | PASS (local) | `test_blocked_terms_produce_the_safe_message`, e2e |
 | Empty results never fall back to the wider web | PASS (local) | `test_empty_results_never_fall_back_to_the_wider_web`, e2e |
-| Each tile performs its configured action | PASS (local) | `test_each_tile_performs_its_configured_action` (all 12 tiles), `test_tile_sections_filter_down_and_stay_default_deny`, e2e Space tile |
+| Each tile performs its configured action | PASS (local) | `test_each_tile_performs_its_configured_action` (all 12 tiles), `test_tile_sections_filter_down_and_stay_default_deny`, `test_concise_tiles_open_one_approved_page`, e2e Space tile + Broad/Concise editor |
 | **Photos** | | |
 | Only photos in approved albums can appear | PASS (local) · pending with real Immich | `test_only_photos_in_approved_albums_appear` |
 | A guessed opaque ID returns 404 | PASS (local) | `test_guessed_opaque_id_returns_404` |
@@ -135,11 +135,12 @@ test_search_content.py · test_index_rebuilds_from_config_and_sqlite — PASS
 test_search_content.py · test_search_unavailable_is_a_calm_503 — PASS
 test_search_content.py · test_secrets_never_in_responses — PASS
 test_search_content.py · test_tile_sections_filter_down_and_stay_default_deny — PASS
+test_search_content.py · test_concise_tiles_open_one_approved_page — PASS
 ```
 
 ## Raw output — Chromium e2e (360 px)
 ```
-PASS  home page loads in under 1 s (local)  (132 ms)
+PASS  home page loads in under 1 s (local)  (141 ms)
 PASS  12 tiles in a 2-column grid at 360px
 PASS  home: no horizontal scroll at 360px
 PASS  home: tap targets >= 44px  ([])
@@ -164,6 +165,10 @@ PASS  parent: no horizontal scroll at 360px
 PASS  parent sees the child's Ask-a-grown-up request
 PASS  parent page: no CSP violations
 PASS  tile editor shows sections and a page count
+PASS  each tile has the Broad / Concise switch
+PASS  flipping to Concise shows the one-link field
+PASS  Concise warns when the site isn't approved
+PASS  flipping back to Broad keeps the sections
 PASS  tile editor: no horizontal scroll at 360px
 PASS  child gets 403 on /parent
 ```

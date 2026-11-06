@@ -15,6 +15,7 @@ import mimetypes
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -276,11 +277,11 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
                 continue
             item = {"id": tile["id"], "label": tile["label"], "icon": tile["icon"],
                     "action": tile["action"]}
-            if tile["action"] == "open_host":
-                hosts = [h for h in tile["hosts"] if h in approved]
-                if not hosts:
+            if tile["action"] == "open_url":
+                # Default deny: a concise tile only shows while its site is approved.
+                if urlsplit(tile["url"]).hostname not in approved:
                     continue
-                item["url"] = f"https://{hosts[0]}/"
+                item["url"] = tile["url"]
             tiles.append(item)
         return JSONResponse({"site_name": t["site_name"], "tagline": t["tagline"],
                              "wordmark": t["wordmark"], "tiles": tiles},
@@ -395,6 +396,10 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
             except MeiliError:
                 counts[t["id"]] = None
         st["tile_counts"] = counts
+        approved = core.cfg.approved_hosts()
+        st["tile_links"] = {t["id"]: {"url": t["url"],
+                                      "approved": urlsplit(t["url"]).hostname in approved}
+                            for t in st["tiles"]["tiles"] if t.get("url")}
         st["tiles"] = {**st["tiles"], "tiles": [
             {**t, "sections": [f"https://{k}" for k in t.get("sections") or []]}
             for t in st["tiles"]["tiles"]]}

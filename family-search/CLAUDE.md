@@ -103,7 +103,14 @@ Services: `meilisearch` (127.0.0.1:7700), `family-search` (:8080, uvicorn,
   only fs-web may reach Immich).
 
 ## Tiles
-A filter/search tile's topic is the **union** of `categories` (whole sites in
+Each tile is **Broad** (`filter`/`search`: results shown inside our search,
+title + snippet, one tap opens the real page) or **Concise** (`open_url`: the
+tile opens one page directly), plus `photos` and `random`. `/parent` flips
+between them; a tile keeps both its broad settings and its `url`. A concise
+tile is only sent to the browser while its URL's host is approved. Legacy
+`open_host` is normalised to `open_url` on load.
+
+A broad tile's topic is the **union** of `categories` (whole sites in
 those categories), `hosts` (whole sites) and `sections` (parts of sites: every
 page whose URL sits under a link like `https://www.ducksters.com/history/`).
 The crawler indexes each page with `prefixes` — its `host/seg/…/` ancestors —

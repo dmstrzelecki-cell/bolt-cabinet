@@ -258,7 +258,7 @@ function tileTap(t) {
     runSearch({ push: true });
   } else if (t.action === "random") {
     curious(t.id);
-  } else if (t.action === "open_host") {
+  } else if (t.action === "open_url") {
     const href = safeHref(t.url);
     if (href) window.location.assign(href);
   } else {

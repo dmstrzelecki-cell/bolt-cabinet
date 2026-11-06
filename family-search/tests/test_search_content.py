@@ -272,7 +272,7 @@ def test_tiles_editable_without_code_changes(parent, child):
     ids = [t["id"] for t in child.get("/api/config").json()["tiles"]]
     assert ids[0] == "library" and "photos" not in ids and ids[-1] == "desmos"
     t = [t for t in child.get("/api/config").json()["tiles"] if t["id"] == "desmos"][0]
-    assert t["url"] == "https://www.desmos.com/"
+    assert t["url"] == "https://www.desmos.com/" and t["action"] == "open_url"
     bad = tiles + [{"id": "x", "label": "Bad", "icon": "star", "action": "open_host", "hosts": ["http://x"]}]
     assert parent.post("/api/parent/tiles", json={"tiles": bad}).status_code == 400
 
@@ -343,3 +343,37 @@ def test_tile_sections_filter_down_and_stay_default_deny(parent, child, core, fa
     import yaml
     saved = yaml.safe_load((core.s.config_dir / "tiles.yaml").read_text())
     assert [t for t in saved["tiles"] if t["id"] == "mix"][0]["sections"][0] == "https://www.ducksters.com/history/"
+
+
+def test_concise_tiles_open_one_approved_page(parent, child, core):
+    tiles = parent.get("/api/parent/state").json()["tiles"]["tiles"]
+    words = [t for t in tiles if t["id"] == "words"][0]
+    # flip Words from broad to concise: its broad settings are kept for flipping back
+    words["action"] = "open_url"
+    words["url"] = "https://www.merriam-webster.com/dictionary/"
+    tiles.append({"id": "dict", "label": "Dictionary", "icon": "letters", "action": "open_url",
+                  "url": "https://www.dictionary.com/"})          # site not approved (yet)
+    tiles.append({"id": "legacy", "label": "Graphing", "icon": "calculator", "action": "open_host",
+                  "hosts": ["www.desmos.com"]})                  # old style, normalised
+    assert parent.post("/api/parent/tiles", json={"tiles": tiles}).status_code == 200
+    cfg = {t["id"]: t for t in child.get("/api/config").json()["tiles"]}
+    assert cfg["words"] == {"id": "words", "label": "Words", "icon": "letters", "action": "open_url",
+                            "url": "https://www.merriam-webster.com/dictionary/"}
+    assert "dict" not in cfg                                     # default deny: unapproved site hidden
+    assert cfg["legacy"]["action"] == "open_url" and cfg["legacy"]["url"] == "https://www.desmos.com/"
+    st = parent.get("/api/parent/state").json()
+    assert st["tile_links"]["dict"] == {"url": "https://www.dictionary.com/", "approved": False}
+    assert st["tile_links"]["words"]["approved"] is True
+    saved = [t for t in st["tiles"]["tiles"] if t["id"] == "words"][0]
+    assert saved["sections"] == ["https://www.merriam-webster.com/dictionary/"]  # kept
+    # approve dictionary.com -> its tile appears; remove M-W -> Words disappears
+    parent.post("/api/parent/sites", json={"action": "add", "host": "www.dictionary.com",
+                                           "category": "reference", "crawl": False})
+    parent.post("/api/parent/sites", json={"action": "remove", "host": "www.merriam-webster.com"})
+    ids = {t["id"] for t in child.get("/api/config").json()["tiles"]}
+    assert "dict" in ids and "words" not in ids
+    # bad links are refused
+    for bad in ["http://www.dictionary.com/", "https://user:pw@www.dictionary.com/",
+                "https://www.dictionary.com:8443/", "javascript:alert(1)", ""]:
+        t2 = tiles + [{"id": "bad", "label": "Bad", "icon": "star", "action": "open_url", "url": bad}]
+        assert parent.post("/api/parent/tiles", json={"tiles": t2}).status_code == 400, bad

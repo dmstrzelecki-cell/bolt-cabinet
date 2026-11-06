@@ -30,7 +30,10 @@ CATEGORY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 ALBUM_ID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 TILE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,31}$")
 
-TILE_ACTIONS = ("search", "filter", "open_host", "photos", "random")
+# filter/search = "broad" (results from many sites, shown in our search);
+# open_url = "concise" (the tile opens one approved page directly).
+# open_host is accepted for older files and stored as open_url.
+TILE_ACTIONS = ("search", "filter", "open_url", "open_host", "photos", "random")
 TILE_ICONS = (
     "book", "flask", "rocket", "paw", "column", "calculator", "letters",
     "news", "ballet", "lightbulb", "library", "camera", "globe", "pencil",
@@ -378,6 +381,26 @@ def section_url(key: str) -> str:
     return "https://" + key
 
 
+def validate_page_url(raw: Any) -> str:
+    """A single https:// page a 'concise' tile opens. Approval of its host is
+    checked at serve time, so removing the site also removes the tile."""
+    from urllib.parse import urlsplit, urlunsplit
+    text = str(raw or "").strip()
+    if "://" not in text and text:
+        text = "https://" + text
+    try:
+        p = urlsplit(text)
+        port = p.port
+    except ValueError:
+        raise ConfigError(f"not a valid link: {raw!r}")
+    if p.scheme != "https":
+        raise ConfigError(f"tile links must start with https:// ({raw!r})")
+    if p.username or p.password or port not in (None, 443) or len(text) > 2048:
+        raise ConfigError(f"not an allowed link: {raw!r}")
+    host = validate_host(p.hostname or "")
+    return urlunsplit(("https", host, p.path or "/", p.query, ""))
+
+
 def validate_tile(raw: Any) -> dict:
     if not isinstance(raw, dict):
         raise ConfigError("each tile must be a mapping")
@@ -401,14 +424,21 @@ def validate_tile(raw: Any) -> dict:
         "sections": list(dict.fromkeys(section_key(x) for x in (raw.get("sections") or []))),
         "query": str(raw.get("query", "")).strip()[:100],
         "include_library": bool(raw.get("include_library", False)),
+        "url": validate_page_url(raw["url"]) if raw.get("url") else "",
     }
+    if action == "open_host":  # legacy: open a site's home page
+        if not t["hosts"]:
+            raise ConfigError(f"tile {tid}: needs at least one host")
+        t["action"], t["url"] = "open_url", f"https://{t['hosts'][0]}/"
+    if t["action"] == "open_url" and not t["url"]:
+        raise ConfigError(f"tile {tid}: a concise tile needs the one link it opens")
     if action == "search" and not t["query"]:
         raise ConfigError(f"tile {tid}: a search tile needs a query")
     if raw.get("sections") is not None and not isinstance(raw.get("sections"), list):
         raise ConfigError(f"tile {tid}: sections must be a list of links")
     if len(t["sections"]) > 40:
         raise ConfigError(f"tile {tid}: 40 sections at most")
-    if action in ("open_host", "random") and not t["hosts"]:
+    if action == "random" and not t["hosts"]:
         raise ConfigError(f"tile {tid}: needs at least one host")
     if action == "filter" and not (t["categories"] or t["hosts"] or t["sections"]
                                    or t["include_library"]):
@@ -441,6 +471,8 @@ def dump_tiles(doc: dict) -> str:
             d["query"] = t["query"]
         if t.get("include_library"):
             d["include_library"] = True
+        if t.get("url"):
+            d["url"] = t["url"]
         if t.get("hidden"):
             d["hidden"] = True
         tiles.append(d)

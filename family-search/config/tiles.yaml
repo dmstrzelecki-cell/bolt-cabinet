@@ -1,10 +1,13 @@
 # Home-page tiles, in display order. Edited by the /parent page.
 #
-# action:  filter    -> narrow results to a topic (see below)
-#          search    -> run `query` inside that topic
-#          open_host -> open https://<first host>/ (must be approved)
+# action:  filter    -> BROAD: results from a topic, shown in our search (see below)
+#          search    -> BROAD, starting with the words in `query`
+#          open_url  -> CONCISE: opens the one page in `url` directly. Its site must
+#                       be approved, or the tile is hidden (default deny).
 #          photos    -> open the Photos tab
 #          random    -> open a random indexed page from `hosts`
+# A tile keeps both its broad settings and its `url`, so /parent can flip it
+# between Broad and Concise without retyping anything.
 #
 # A filter/search tile's topic is the UNION of:
 #   categories: every approved site in these categories (whole site)

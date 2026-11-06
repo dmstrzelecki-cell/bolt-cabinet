@@ -115,9 +115,21 @@ await pp.waitForSelector("#tiles .item");
 const animals = (await pp.$$("#tiles .item"))[3];
 const animalsText = await animals.textContent();
 ok("tile editor shows sections and a page count", animalsText.includes("Finds about") || animalsText.includes("finds 0 pages"));
+ok("each tile has the Broad / Concise switch", (await animals.$$(".mode")).length === 4 &&
+  (await animals.$eval(".mode.on", (b) => b.textContent)).startsWith("Broad"));
+await (await (await pp.$$("#tiles .item"))[6].$(".mode >> text=Concise")).click();
+const wordsNow = (await pp.$$("#tiles .item"))[6];
+const link = await wordsNow.$('input[type="url"]');
+ok("flipping to Concise shows the one-link field", !!link);
+await link.fill("https://www.dictionary.com/");
+ok("Concise warns when the site isn't approved", (await wordsNow.textContent()).includes("not approved yet"));
+await wordsNow.screenshot({ path: `${shots}/parent-tile-concise-360.png` });
+await (await (await pp.$$("#tiles .item"))[6].$(".mode >> text=Broad")).click();
+ok("flipping back to Broad keeps the sections", (await (await pp.$$("#tiles .item"))[6].textContent()).includes("Sections"));
 ok("tile editor: no horizontal scroll at 360px", await noHScroll(pp));
-await animals.scrollIntoViewIfNeeded();
-await animals.screenshot({ path: `${shots}/parent-tile-360.png` });
+const animalsNow = (await pp.$$("#tiles .item"))[3];
+await animalsNow.scrollIntoViewIfNeeded();
+await animalsNow.screenshot({ path: `${shots}/parent-tile-360.png` });
 
 const c2 = await page(childJwt);
 const resp = await c2.goto(base + "/parent");

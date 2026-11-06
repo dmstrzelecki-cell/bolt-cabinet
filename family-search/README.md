@@ -99,7 +99,7 @@ Then `pct reboot <CTID>` and run `verify.sh` again.
 - [ ] Sign in on her phone, enter the one-time code, and use **Add to Home screen**.
 
 ## Operating it
-- **/parent** (parents only) covers requests, sites (add/edit/disable/remove, crawl now, status), the Family Link list, library (links, notes, PDFs up to 25 MB), photo albums and sync, blocked words and synonyms, home-page tiles (each tile can be narrowed to whole sites, categories, or just sections of a site, with a live "finds N pages" count), the search-history toggle (off by default), and the audit log (parent changes, crawls, syncs, denied access).
+- **/parent** (parents only) covers requests, sites (add/edit/disable/remove, crawl now, status), the Family Link list, library (links, notes, PDFs up to 25 MB), photo albums and sync, blocked words and synonyms, home-page tiles (each tile is **Broad** — results from a list of sites shown in our search — or **Concise** — opens one page directly; broad tiles can be narrowed to whole sites, categories, or just sections of a site, with a live "finds N pages" count), the search-history toggle (off by default), and the audit log (parent changes, crawls, syncs, denied access).
 - **Crawls** run nightly from 01:10. Each host refreshes weekly on its own night. The first crawl is spread over several nights (4 h budget per night). `simple.wikipedia.org` is imported from the official Wikimedia dump, checksum-verified, and its links point to the live pages.
 - **Backups** run nightly to `/var/backups/family-search` and keep the last 14. Restore with `scripts/restore.sh <file>`, adding `--with-secrets` to restore the env files too.
 - **Rebuild the index** with `scripts/rebuild-index.sh`. Nothing is lost, because the index is only a cache.
@@ -108,6 +108,6 @@ Then `pct reboot <CTID>` and run `verify.sh` again.
 ## Development
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r <(sed 's/ --hash.*//' backend/requirements.lock) pytest
-.venv/bin/pytest tests/                      # 65 tests, fakes for Meilisearch / Immich / the web
+.venv/bin/pytest tests/                      # 66 tests, fakes for Meilisearch / Immich / the web
 PYTHON=.venv/bin/python tests/e2e/run.sh     # Chromium at 360 px (needs Node + Playwright)
 ```
