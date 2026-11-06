@@ -12,23 +12,40 @@ import httpx
 PRE, POST = "", ""
 
 
-def _parse_filter(flt: str):
-    """Supports `field IN ["a","b"]`, `field = "a"`, joined by AND."""
+def _match(d, field, vals):
+    v = d.get(field)
+    if isinstance(v, list):
+        return any(x in vals for x in v)
+    return v in vals
+
+
+def _parse_one(part: str):
+    m = re.match(r'^\s*(\w+)\s+IN\s+\[(.*)\]\s*$', part)
+    if m:
+        vals = set(json.loads("[" + m.group(2) + "]"))
+        return lambda d, f=m.group(1), v=vals: _match(d, f, v)
+    m = re.match(r'^\s*(\w+)\s*=\s*(".*")\s*$', part)
+    if m:
+        val = json.loads(m.group(2))
+        return lambda d, f=m.group(1), v={val}: _match(d, f, v)
+    raise ValueError(f"unsupported filter {part!r}")
+
+
+def _parse_filter(flt):
+    """Meilisearch filter subset: a string of `field IN [...]` / `field = "x"`
+    joined by AND, or the array form (outer list = AND, inner list = OR)."""
     if not flt:
         return lambda d: True
-    preds = []
-    for part in re.split(r"\s+AND\s+", flt):
-        m = re.match(r'^\s*(\w+)\s+IN\s+\[(.*)\]\s*$', part)
-        if m:
-            vals = set(json.loads("[" + m.group(2) + "]"))
-            preds.append(lambda d, f=m.group(1), v=vals: d.get(f) in v)
-            continue
-        m = re.match(r'^\s*(\w+)\s*=\s*(".*")\s*$', part)
-        if m:
-            val = json.loads(m.group(2))
-            preds.append(lambda d, f=m.group(1), v=val: d.get(f) == v)
-            continue
-        raise ValueError(f"unsupported filter {part!r}")
+    if isinstance(flt, list):
+        preds = []
+        for item in flt:
+            if isinstance(item, list):
+                ors = [_parse_one(x) for x in item]
+                preds.append(lambda d, ors=ors: any(p(d) for p in ors))
+            else:
+                preds.append(_parse_one(item))
+        return lambda d: all(p(d) for p in preds)
+    preds = [_parse_one(part) for part in re.split(r"\s+AND\s+", flt)]
     return lambda d: all(p(d) for p in preds)
 
 

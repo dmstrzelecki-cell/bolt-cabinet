@@ -110,6 +110,15 @@ await pp.waitForSelector("#requests .item");
 ok("parent sees the child's Ask-a-grown-up request", (await pp.textContent("#requests")).includes("zzqxv"));
 ok("parent page: no CSP violations", pp.cspErrors.length === 0, pp.cspErrors.join(" | "));
 
+await pp.click('#ptabs button[data-sec="tiles"]');
+await pp.waitForSelector("#tiles .item");
+const animals = (await pp.$$("#tiles .item"))[3];
+const animalsText = await animals.textContent();
+ok("tile editor shows sections and a page count", animalsText.includes("Finds about") || animalsText.includes("finds 0 pages"));
+ok("tile editor: no horizontal scroll at 360px", await noHScroll(pp));
+await animals.scrollIntoViewIfNeeded();
+await animals.screenshot({ path: `${shots}/parent-tile-360.png` });
+
 const c2 = await page(childJwt);
 const resp = await c2.goto(base + "/parent");
 ok("child gets 403 on /parent", resp.status() === 403);

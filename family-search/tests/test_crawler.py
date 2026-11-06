@@ -334,3 +334,13 @@ def test_wikitext_stripping():
     assert "wikitable" not in body and "hidden" not in body and "NASA says hi." in body
     assert heads == ["Phases"]
     assert first_sentences("A. " * 400).endswith(".")
+
+
+def test_indexed_pages_carry_section_prefixes(cfgstore, fake_meili, tmp_path):
+    write_allowlist(cfgstore, {"a.example.org": {"category": "reference"}})
+    web = FakeWeb({("a.example.org", "/robots.txt"): (200, T, b""),
+                   ("a.example.org", "/"): (200, H, html("Home", "x", ["/animals/lion"])),
+                   ("a.example.org", "/animals/lion"): (200, H, html("Lion", "roar"))})
+    run(cfgstore, web, fake_meili, tmp_path)
+    doc = [d for d in fake_meili.indexes[WEB].values() if d["url"].endswith("/lion")][0]
+    assert "a.example.org/animals/" in doc["prefixes"]

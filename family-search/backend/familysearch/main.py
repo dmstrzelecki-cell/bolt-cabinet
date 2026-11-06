@@ -388,6 +388,16 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
         with core.db.conn() as c:
             st["history_count"] = c.execute("SELECT COUNT(*) FROM search_history").fetchone()[0]
         st["immich_configured"] = settings.immich_configured
+        counts = {}
+        for t in st["tiles"]["tiles"]:
+            try:
+                counts[t["id"]] = core.search.tile_count(t)
+            except MeiliError:
+                counts[t["id"]] = None
+        st["tile_counts"] = counts
+        st["tiles"] = {**st["tiles"], "tiles": [
+            {**t, "sections": [f"https://{k}" for k in t.get("sections") or []]}
+            for t in st["tiles"]["tiles"]]}
         return JSONResponse(st)
 
     @app.post("/api/parent/sites")

@@ -13,10 +13,11 @@ PRE, POST = "", ""
 
 
 def wdoc(url, title, body="", host=None, category="reference", description=""):
+    from familysearch.config import url_prefixes
     host = host or urlsplit(url).hostname
     return {"id": hashlib.sha256(url.encode()).hexdigest()[:32], "url": url, "host": host,
             "title": title, "description": description, "headings": "", "body": body,
-            "category": category, "language": "en", "boost": 0}
+            "category": category, "language": "en", "boost": 0, "prefixes": url_prefixes(url)}
 
 
 def seed(fake_meili, *docs):
@@ -34,6 +35,10 @@ SEED = [
     wdoc("https://www.wonderopolis.org/wonder/why-is-the-sky-blue", "Why is the sky blue?", "light", category="curiosity"),
     wdoc("https://www.mathsisfun.com/geometry/circle.html", "Circle", "a moon is round like a circle", category="math"),
     wdoc("https://www.timeforkids.com/g56/moon-mission/", "Moon mission", "news about the moon", category="news"),
+    wdoc("https://www.ducksters.com/animals/moon_bear.php", "Moon bear", "moon bear facts", category="reference"),
+    wdoc("https://www.ducksters.com/history/moon_landing.php", "Moon landing", "apollo moon", category="reference"),
+    wdoc("https://www.ducksters.com/games/moon_game.php", "Moon game", "a moon game", category="reference"),
+    wdoc("https://www.merriam-webster.com/games/moon-quiz", "Moon quiz", "moon word game", category="reference"),
     # Stale / hostile documents that must never surface:
     wdoc("https://evil.example.com/moon", "Evil moon", "moon", host="evil.example.com"),
     wdoc("https://nasa.gov/moon-apex", "Apex domain moon", "moon", host="nasa.gov"),
@@ -139,10 +144,16 @@ def test_each_tile_performs_its_configured_action(child, fake_meili, core, paren
 
     got, _ = hosts_for("space")
     assert got and all(hosts[h].category == "space" for h in got)
-    got, d = hosts_for("animals")
-    assert d["q"] == "animals" and got == {"kids.nationalgeographic.com"}
-    got, _ = hosts_for("words")
-    assert got == {"www.merriam-webster.com"}
+    def urls_for(tile, q=""):
+        return {r["url"] for r in child.get(f"/api/search?tile={tile}&q={q}").json()["results"]}
+    # Animals: just the animal sections of Nat Geo Kids and Ducksters
+    assert urls_for("animals") == {"https://kids.nationalgeographic.com/animals/",
+                                   "https://www.ducksters.com/animals/moon_bear.php"}
+    # Words: the dictionary section of Merriam-Webster, not its games
+    assert urls_for("words") == {"https://www.merriam-webster.com/dictionary/moon"}
+    # History: history-category sites plus only Ducksters' history section
+    assert "https://www.ducksters.com/history/moon_landing.php" in urls_for("history", "moon")
+    assert not any("/games/" in u for u in urls_for("history", "moon") | urls_for("animals", "moon"))
     got, _ = hosts_for("math")
     assert got == {"www.mathsisfun.com"}
     got, _ = hosts_for("news")
@@ -295,3 +306,40 @@ def test_secrets_never_in_responses(app, keys, fake_meili):
     for secret in [b"meili-test-key", b"csrf-test-secret", b"immich-secret-key", b"192.168.0.101", b"2283",
                    b"7700"]:
         assert secret not in blob, secret
+
+
+def test_tile_sections_filter_down_and_stay_default_deny(parent, child, core, fake_meili):
+    from familysearch.config import ConfigError, section_key, url_prefixes
+    seed(fake_meili, *SEED)
+    assert url_prefixes("https://www.ducksters.com/history/us/Civil_War.php") == [
+        "www.ducksters.com/", "www.ducksters.com/history/", "www.ducksters.com/history/us/",
+        "www.ducksters.com/history/us/civil_war.php/"]
+    assert section_key("www.ducksters.com/history") == "www.ducksters.com/history/"
+    for bad in ["http://www.ducksters.com/history/", "https://x.org/a?b=1", "https://*.x.org/"]:
+        try:
+            section_key(bad)
+            raise AssertionError(bad)
+        except ConfigError:
+            pass
+    tiles = parent.get("/api/parent/state").json()["tiles"]["tiles"]
+    tiles.append({"id": "mix", "label": "Mix", "icon": "star", "action": "filter",
+                  "sections": ["https://www.ducksters.com/history/", "https://evil.example.com/"]})
+    assert parent.post("/api/parent/tiles", json={"tiles": tiles}).status_code == 200
+    # a section on an unapproved host contributes nothing (default deny)
+    urls = {r["url"] for r in child.get("/api/search?tile=mix&q=moon").json()["results"]}
+    assert urls == {"https://www.ducksters.com/history/moon_landing.php"}
+    # "history" must not match a sibling like /historyx/
+    seed(fake_meili, wdoc("https://www.ducksters.com/historyx/moon.php", "Not history", "moon"))
+    urls = {r["url"] for r in child.get("/api/search?tile=mix&q=moon").json()["results"]}
+    assert urls == {"https://www.ducksters.com/history/moon_landing.php"}
+    # disabling the site hides its sections immediately
+    parent.post("/api/parent/sites", json={"action": "disable", "host": "www.ducksters.com"})
+    assert child.get("/api/search?tile=mix&q=moon").json()["results"] == []
+    # parent page shows how many pages each tile reaches, sections as links
+    st = parent.get("/api/parent/state").json()
+    assert st["tile_counts"]["mix"] == 0 and st["tile_counts"]["words"] == 1
+    mix = [t for t in st["tiles"]["tiles"] if t["id"] == "mix"][0]
+    assert mix["sections"][0] == "https://www.ducksters.com/history/"
+    import yaml
+    saved = yaml.safe_load((core.s.config_dir / "tiles.yaml").read_text())
+    assert [t for t in saved["tiles"] if t["id"] == "mix"][0]["sections"][0] == "https://www.ducksters.com/history/"

@@ -356,13 +356,23 @@ function renderTiles() {
     ul.append(el("li", { class: "item" + (t.hidden ? " off" : "") },
       el("div", { class: "grow" },
         el("div", { class: "title", text: `${i + 1}. ${t.label}${t.hidden ? " (hidden)" : ""}` }),
+        tileCountLine(t),
         el("div", { class: "tile-edit" },
           el("label", {}, "Id", input("id", t.id)),
           el("label", {}, "Label", input("label", t.label, { maxlength: "24" })),
           el("label", {}, "Icon", iconSel),
           el("label", {}, "Action", actSel),
           el("label", {}, "Categories (comma)", input("categories", (t.categories || []).join(", "))),
-          el("label", {}, "Hosts (comma)", input("hosts", (t.hosts || []).join(", "))),
+          el("label", {}, "Whole sites (comma)", input("hosts", (t.hosts || []).join(", "))),
+          el("label", { class: "wide" }, "Sections — one page link per line; every page under it counts (e.g. https://kids.nationalgeographic.com/animals/)",
+            (() => {
+              const ta = el("textarea", { rows: String(Math.max(2, (t.sections || []).length + 1)), spellcheck: "false" });
+              ta.value = (t.sections || []).join("\n");
+              ta.addEventListener("input", () => {
+                t.sections = ta.value.split(/[\n,]/).map((x) => x.trim()).filter(Boolean);
+              });
+              return ta;
+            })()),
           el("label", {}, "Search words", input("query", t.query)),
           el("label", { class: "check" }, lib, "Include library"))),
       el("div", { class: "btns" },
@@ -371,6 +381,14 @@ function renderTiles() {
         btn("Remove", () => { tilesDraft.splice(i, 1); renderTiles(); }))));
   });
   $("tiles").replaceChildren(ul);
+}
+
+function tileCountLine(t) {
+  const n = S.tile_counts ? S.tile_counts[t.id] : undefined;
+  if (n === undefined || n === null) return null;
+  if (n === 0) return el("div", { class: "meta" }, el("span", { class: "pill bad",
+    text: "finds 0 pages — check the sections / categories, or wait for the first crawl" }));
+  return el("div", { class: "meta", text: `Finds about ${n.toLocaleString()} approved pages (as last saved)` });
 }
 
 /* ------------------------------------------------------------- history + audit */

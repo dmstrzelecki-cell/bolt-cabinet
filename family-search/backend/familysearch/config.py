@@ -339,6 +339,45 @@ def _str_list(v: Any, what: str, pattern: re.Pattern | None = None) -> list[str]
     return out
 
 
+MAX_PREFIX_DEPTH = 6
+
+
+def url_prefixes(url: str) -> list[str]:
+    """Every section a page sits in, as 'host/seg1/seg2/' keys, from the site
+    root down to the page itself. Indexed with each page so a tile can be
+    narrowed to part of a site (e.g. kids.nationalgeographic.com/animals/)."""
+    from urllib.parse import unquote, urlsplit
+    p = urlsplit(url)
+    host = (p.hostname or "").lower()
+    if not host:
+        return []
+    segs = [unquote(x).lower() for x in (p.path or "/").split("/") if x][:MAX_PREFIX_DEPTH]
+    return [host + "/" + "".join(f"{x}/" for x in segs[:i]) for i in range(len(segs) + 1)]
+
+
+def section_key(raw: Any) -> str:
+    """Parent-entered section link -> 'host/path/' key. Accepts
+    'https://host/path', 'host/path' or 'https://host/path/'."""
+    from urllib.parse import urlsplit
+    text = str(raw or "").strip()
+    if not text:
+        raise ConfigError("empty section link")
+    if "://" not in text:
+        text = "https://" + text
+    p = urlsplit(text)
+    if p.scheme != "https":
+        raise ConfigError(f"section links must be https:// ({raw!r})")
+    if p.query or p.fragment:
+        raise ConfigError(f"section links can't have ?query or #fragment ({raw!r})")
+    host = validate_host(p.hostname or "")
+    keys = url_prefixes(f"https://{host}{p.path or '/'}")
+    return keys[-1]
+
+
+def section_url(key: str) -> str:
+    return "https://" + key
+
+
 def validate_tile(raw: Any) -> dict:
     if not isinstance(raw, dict):
         raise ConfigError("each tile must be a mapping")
@@ -359,15 +398,21 @@ def validate_tile(raw: Any) -> dict:
         "hidden": bool(raw.get("hidden", False)),
         "categories": _str_list(raw.get("categories"), f"tile {tid} categories", CATEGORY_RE),
         "hosts": [validate_host(h) for h in (raw.get("hosts") or [])],
+        "sections": list(dict.fromkeys(section_key(x) for x in (raw.get("sections") or []))),
         "query": str(raw.get("query", "")).strip()[:100],
         "include_library": bool(raw.get("include_library", False)),
     }
     if action == "search" and not t["query"]:
         raise ConfigError(f"tile {tid}: a search tile needs a query")
+    if raw.get("sections") is not None and not isinstance(raw.get("sections"), list):
+        raise ConfigError(f"tile {tid}: sections must be a list of links")
+    if len(t["sections"]) > 40:
+        raise ConfigError(f"tile {tid}: 40 sections at most")
     if action in ("open_host", "random") and not t["hosts"]:
         raise ConfigError(f"tile {tid}: needs at least one host")
-    if action == "filter" and not (t["categories"] or t["hosts"] or t["include_library"]):
-        raise ConfigError(f"tile {tid}: a filter tile needs categories or hosts")
+    if action == "filter" and not (t["categories"] or t["hosts"] or t["sections"]
+                                   or t["include_library"]):
+        raise ConfigError(f"tile {tid}: a filter tile needs categories, sites or sections")
     return t
 
 
@@ -390,6 +435,8 @@ def dump_tiles(doc: dict) -> str:
         for k in ("categories", "hosts"):
             if t.get(k):
                 d[k] = t[k]
+        if t.get("sections"):
+            d["sections"] = [section_url(k) for k in t["sections"]]
         if t.get("query"):
             d["query"] = t["query"]
         if t.get("include_library"):

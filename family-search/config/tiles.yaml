@@ -1,20 +1,59 @@
 # Home-page tiles, in display order. Edited by the /parent page.
 #
-# action:  search    -> run `query` (optionally narrowed by categories/hosts)
-#          filter    -> narrow results to categories and/or hosts
+# action:  filter    -> narrow results to a topic (see below)
+#          search    -> run `query` inside that topic
 #          open_host -> open https://<first host>/ (must be approved)
 #          photos    -> open the Photos tab
 #          random    -> open a random indexed page from `hosts`
+#
+# A filter/search tile's topic is the UNION of:
+#   categories: every approved site in these categories (whole site)
+#   hosts:      these approved sites (whole site)
+#   sections:   just these parts of approved sites — every page whose link
+#               starts with the given link, e.g. https://www.ducksters.com/history/
+# Sections on sites that are not approved are ignored. /parent shows how many
+# pages each tile finds, so a typo'd section shows up as "finds 0 pages".
 # include_library: true also shows parent library items.
 curious_hosts: [www.wonderopolis.org]
 tiles:
-  - {id: homework, label: Homework, icon: pencil, action: filter, categories: [homework, reference, writing]}
-  - {id: science, label: Science, icon: flask, action: filter, categories: [science, animals-science]}
-  - {id: space, label: Space, icon: rocket, action: filter, categories: [space]}
-  - {id: animals, label: Animals, icon: paw, action: search, query: animals, categories: [animals-science]}
-  - {id: history, label: History, icon: column, action: filter, categories: [history, history-science]}
-  - {id: math, label: Math, icon: calculator, action: filter, categories: [math]}
-  - {id: words, label: Words, icon: letters, action: filter, hosts: [www.merriam-webster.com]}
+  - id: homework
+    label: Homework
+    icon: pencil
+    action: filter
+    categories: [homework, reference, writing]
+  - id: science
+    label: Science
+    icon: flask
+    action: filter
+    categories: [science, animals-science]
+    sections: ['https://www.ducksters.com/science/', 'https://www.khanacademy.org/science/']
+  - id: space
+    label: Space
+    icon: rocket
+    action: filter
+    categories: [space]
+  - id: animals
+    label: Animals
+    icon: paw
+    action: filter
+    sections: ['https://kids.nationalgeographic.com/animals/', 'https://www.ducksters.com/animals/']
+  - id: history
+    label: History
+    icon: column
+    action: filter
+    categories: [history, history-science]
+    sections: ['https://www.ducksters.com/history/']
+  - id: math
+    label: Math
+    icon: calculator
+    action: filter
+    categories: [math]
+    sections: ['https://www.khanacademy.org/math/']
+  - id: words
+    label: Words
+    icon: letters
+    action: filter
+    sections: ['https://www.merriam-webster.com/dictionary/']
   - {id: news, label: News, icon: news, action: filter, categories: [news]}
   - {id: ballet, label: Ballet, icon: ballet, action: filter, categories: [ballet]}
   - {id: curious, label: Curious, icon: lightbulb, action: random, hosts: [www.wonderopolis.org]}

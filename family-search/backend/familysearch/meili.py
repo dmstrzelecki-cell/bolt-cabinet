@@ -22,7 +22,7 @@ MARK_POST = ""
 INDEX_SETTINGS: dict[str, dict[str, Any]] = {
     WEB: {
         "searchableAttributes": ["title", "headings", "description", "body"],
-        "filterableAttributes": ["host", "category"],
+        "filterableAttributes": ["host", "category", "prefixes"],
         "sortableAttributes": ["boost"],
         "rankingRules": ["words", "typo", "boost:desc", "proximity", "attribute", "sort", "exactness"],
         "typoTolerance": {"enabled": True},

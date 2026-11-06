@@ -37,7 +37,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / "backend"))
 sys.path.insert(0, str(HERE))
 
-from familysearch.config import ConfigStore, Host, atomic_write, load_settings  # noqa: E402
+from familysearch.config import ConfigStore, Host, atomic_write, load_settings, url_prefixes  # noqa: E402
 from familysearch.meili import WEB, Meili, MeiliError, quote_filter_value  # noqa: E402
 from extract import extract, normalize_url, skip_reason  # noqa: E402
 from safefetch import USER_AGENT, Fetcher, FetchError  # noqa: E402
@@ -49,6 +49,7 @@ REFRESH_DAYS = 7
 SITEMAP_MAX_FILES = 50
 FLUSH_EVERY = 50
 DEFAULT_MAX_MINUTES = 240
+DOC_VERSION = 2  # bump when the indexed document shape changes, so refreshes re-push every page
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -519,7 +520,7 @@ class Crawler:
     # -- storage -----------------------------------------------------------------
     def store_page(self, url: str, host: str, page) -> None:
         h = self.hosts[host]
-        chash = hashlib.sha256(f"{page.title}\n{page.description}\n{page.body}".encode()).hexdigest()
+        chash = hashlib.sha256(f"{DOC_VERSION}\n{page.title}\n{page.description}\n{page.body}".encode()).hexdigest()
         old = self.store.c.execute("SELECT content_hash, category FROM pages WHERE url=?", (url,)).fetchone()
         now = utcnow()
         self.store.c.execute(
@@ -542,7 +543,7 @@ class Crawler:
         return {"id": doc_id(url), "url": url, "host": host, "title": title,
                 "description": description, "headings": headings, "body": body,
                 "category": h.category, "language": language, "last_crawled": ts,
-                "content_hash": chash, "boost": h.boost}
+                "content_hash": chash, "boost": h.boost, "prefixes": url_prefixes(url)}
 
     def delete_page(self, url: str):
         self.store.c.execute("DELETE FROM pages WHERE url=?", (url,))

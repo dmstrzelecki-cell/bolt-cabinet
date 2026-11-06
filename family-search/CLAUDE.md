@@ -102,6 +102,17 @@ Services: `meilisearch` (127.0.0.1:7700), `family-search` (:8080, uvicorn,
   public 80/443; backend: DNS + Immich:2283 + public 443; meilisearch: none;
   only fs-web may reach Immich).
 
+## Tiles
+A filter/search tile's topic is the **union** of `categories` (whole sites in
+those categories), `hosts` (whole sites) and `sections` (parts of sites: every
+page whose URL sits under a link like `https://www.ducksters.com/history/`).
+The crawler indexes each page with `prefixes` — its `host/seg/…/` ancestors —
+so a section is a plain Meilisearch filter and pagination stays correct; the
+backend re-checks every hit against the same scope. Sections on unapproved
+hosts are ignored (default deny). `/parent` shows how many pages each tile
+reaches, so a mistyped section shows up as "finds 0 pages". Changing the
+indexed document shape means bumping `DOC_VERSION` in `crawler.py`.
+
 ## Source of truth
 `config/` + `app.db` + `crawl.db` + library files. The Meilisearch index is a
 cache: `scripts/rebuild-index.sh` recreates it. Never edit the index directly.
@@ -117,6 +128,6 @@ cache: `scripts/rebuild-index.sh` recreates it. Never edit the index directly.
 - Don't touch Cloudflare, Family Link, or Immich settings — those are David's manual steps.
 
 ## Tests
-`pytest tests/` (63 tests, fakes for Meilisearch/Immich/web) and
+`pytest tests/` (65 tests, fakes for Meilisearch/Immich/web) and
 `tests/e2e/run.sh` (Chromium at 360 px). On the CT: `scripts/verify.sh`.
 Results go in `TEST-RESULTS.md`.

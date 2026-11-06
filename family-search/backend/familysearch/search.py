@@ -14,7 +14,7 @@ import unicodedata
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
-from .config import ConfigStore, Host
+from .config import ConfigStore, Host, url_prefixes
 from .db import DB, now_iso
 from .meili import LIBRARY, MARK_POST, MARK_PRE, PHOTOS, WEB, Meili, in_filter
 
@@ -131,6 +131,37 @@ def _balance(s: str) -> str:
     return "".join(out)
 
 
+class Scope:
+    def __init__(self, approved: frozenset[str], hosts: frozenset[str],
+                 sections: frozenset[str], narrowed: bool):
+        self.approved = approved
+        self.hosts = hosts & approved
+        self.sections = sections
+        self.narrowed = narrowed
+
+    @property
+    def empty(self) -> bool:
+        return not self.hosts and not self.sections
+
+    def meili_filter(self) -> Any:
+        base = in_filter("host", self.approved)
+        if not self.narrowed:
+            return base
+        either = []
+        if self.hosts:
+            either.append(in_filter("host", self.hosts))
+        if self.sections:
+            either.append(in_filter("prefixes", self.sections))
+        return [base, either]  # base AND (whole sites OR sections)
+
+    def allows(self, url: str, host: str) -> bool:
+        if host not in self.approved:
+            return False
+        if host in self.hosts:
+            return True
+        return bool(self.sections) and any(p in self.sections for p in url_prefixes(url))
+
+
 class SearchService:
     def __init__(self, cfg: ConfigStore, meili: Meili, db: DB):
         self.cfg = cfg
@@ -138,21 +169,28 @@ class SearchService:
         self.db = db
 
     # -- scope ---------------------------------------------------------------
-    def scope_hosts(self, tile: dict | None) -> frozenset[str]:
-        """Approved hosts, narrowed by a tile's categories / hosts if given."""
+    def scope(self, tile: dict | None) -> "Scope":
+        """What a search may return right now: approved hosts, optionally
+        narrowed by a tile to whole sites (categories / hosts) OR sections
+        (parts of a site). Sections on hosts that aren't approved are ignored."""
         hosts: dict[str, Host] = self.cfg.hosts()
-        approved = {h for h, v in hosts.items() if v.enabled}
+        approved = frozenset(h for h, v in hosts.items() if v.enabled)
         if not tile:
-            return frozenset(approved)
-        narrowed: set[str] = set()
+            return Scope(approved, approved, frozenset(), narrowed=False)
+        whole: set[str] = set()
         cats = set(tile.get("categories") or [])
         if cats:
-            narrowed |= {h for h in approved if hosts[h].category in cats}
-        if tile.get("hosts"):
-            narrowed |= approved & set(tile["hosts"])
-        if not cats and not tile.get("hosts"):
-            return frozenset() if tile.get("include_library") else frozenset(approved)
-        return frozenset(narrowed)
+            whole |= {h for h in approved if hosts[h].category in cats}
+        whole |= approved & set(tile.get("hosts") or [])
+        sections = frozenset(k for k in tile.get("sections") or [] if k.split("/", 1)[0] in approved)
+        if not (cats or tile.get("hosts") or tile.get("sections")):
+            if tile.get("include_library"):
+                return Scope(approved, frozenset(), frozenset(), narrowed=True)
+            return Scope(approved, approved, frozenset(), narrowed=False)
+        return Scope(approved, frozenset(whole), sections, narrowed=True)
+
+    def scope_hosts(self, tile: dict | None) -> frozenset[str]:
+        return self.scope(tile).hosts
 
     def tile(self, tile_id: str | None) -> dict | None:
         if not tile_id:
@@ -164,13 +202,13 @@ class SearchService:
 
     # -- web -----------------------------------------------------------------
     def web(self, q: str, page: int, tile: dict | None = None) -> dict:
-        allowed = self.scope_hosts(tile)
-        if not allowed:
+        sc = self.scope(tile)
+        if sc.empty:
             return {"results": [], "page": page, "total_pages": 0}
         hosts = self.cfg.hosts()
         r = self.meili.search(WEB, {
             "q": q,
-            "filter": in_filter("host", allowed),
+            "filter": sc.meili_filter(),
             "page": page,
             "hitsPerPage": WEB_PER_PAGE,
             "attributesToRetrieve": ["id", "url", "host", "title", "description", "body"],
@@ -184,10 +222,8 @@ class SearchService:
         out = []
         for hit in r.get("hits", []):
             host = str(hit.get("host", "")).lower()
-            if host not in allowed:
-                continue
             url = safe_https_url(hit.get("url"), expected_host=host)
-            if not url:
+            if not url or not sc.allows(url, host):
                 continue
             fmt = hit.get("_formatted") or {}
             title = _trim_marked(clean_marked(fmt.get("title") or hit.get("title") or ""), 140) \
@@ -330,6 +366,17 @@ class SearchService:
             return
         with self.db.conn() as c:
             c.execute("INSERT INTO search_history(ts, q, type) VALUES (?,?,?)", (now_iso(), q, type_))
+
+    def tile_count(self, tile: dict) -> int | None:
+        """Roughly how many approved pages a tile reaches (parent page hint)."""
+        if tile["action"] not in ("filter", "search"):
+            return None
+        sc = self.scope(tile)
+        if sc.empty:
+            return 0
+        r = self.meili.search(WEB, {"q": tile.get("query") if tile["action"] == "search" else "",
+                                    "filter": sc.meili_filter(), "limit": 0})
+        return int(r.get("estimatedTotalHits") or 0)
 
     # -- extras ----------------------------------------------------------------
     def suggest(self, q: str) -> list[str]:
