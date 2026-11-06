@@ -131,6 +131,37 @@ const animalsNow = (await pp.$$("#tiles .item"))[3];
 await animalsNow.scrollIntoViewIfNeeded();
 await animalsNow.screenshot({ path: `${shots}/parent-tile-360.png` });
 
+// Activity monitoring: parent turns it on, child searches + opens a result, parent sees it.
+await pp.click('#ptabs button[data-sec="activity"]');
+await pp.waitForSelector("#store-history");
+await pp.check("#store-history");
+await pp.waitForFunction(() => document.getElementById("act-summary").textContent.startsWith("Last 7 days"));
+const kid = await page(childJwt, 360, 2);
+await kid.route(/^https:\/\//, (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<p>external</p>" }));
+await kid.goto(base + "/");
+await kid.waitForSelector(".tile");
+ok("her page shows the monitoring notice", await kid.isVisible("#monitor-note"));
+await kid.screenshot({ path: `${shots}/home-notice-360.png`, clip: { x: 0, y: 1500, width: 360, height: 260 } }).catch(() => {});
+await kid.fill("#q", "moon snapchat");
+await kid.keyboard.press("Enter");
+await kid.waitForSelector(".result");
+ok("watch-word search still shows results", (await kid.$$(".result")).length > 0);
+const [popup] = await Promise.all([kid.context().waitForEvent("page"), kid.click(".result a.title")]);
+await popup.waitForLoadState().catch(() => {});
+await kid.waitForTimeout(400);
+await pp.click("#act-refresh");
+await pp.waitForSelector("#activity .item");
+const actText = await pp.textContent("#activity");
+ok("parent sees her search, flagged with the watch word", actText.includes("moon snapchat") && actText.includes("watch word: snapchat"));
+ok("parent sees the page she opened", actText.includes("Opened"));
+await pp.check("#act-flagged");
+await pp.waitForFunction(() => document.querySelectorAll("#activity .item").length === 1);
+ok("flagged-only filter works", (await pp.$$("#activity .item")).length === 1);
+ok("activity tab: no horizontal scroll at 360px", await noHScroll(pp));
+await pp.uncheck("#act-flagged");
+await pp.waitForFunction(() => document.querySelectorAll("#activity .item").length >= 2);
+await pp.screenshot({ path: `${shots}/parent-activity-360.png`, fullPage: true });
+
 const c2 = await page(childJwt);
 const resp = await c2.goto(base + "/parent");
 ok("child gets 403 on /parent", resp.status() === 403);

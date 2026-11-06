@@ -26,7 +26,9 @@ from .auth import (JWT_HEADER, AccessVerifier, AuthError, Identity, RateLimiter,
 from .config import ConfigError, ConfigStore, Settings, load_settings
 from .db import DB, now_iso
 from .library import MAX_PDF, LibraryService
+from .activity import ActivityService
 from .meili import Meili, MeiliError
+from .notify import Notifier
 from .parent import ParentService
 from .photos import Immich, ImmichError, PhotoService
 from .search import MAX_QUERY, TYPES, SearchService, normalize_query
@@ -65,7 +67,8 @@ class App:
     """Holds services; built once per process (or per test)."""
 
     def __init__(self, settings: Settings, verifier: AccessVerifier | None = None,
-                 immich: Immich | None = None, meili: Meili | None = None):
+                 immich: Immich | None = None, meili: Meili | None = None,
+                 notifier: Notifier | None = None):
         self.s = settings
         self.cfg = ConfigStore(settings)
         self.db = DB(settings.db_path)
@@ -76,7 +79,10 @@ class App:
         if immich is None and settings.immich_configured:
             immich = Immich(settings.immich_url, settings.immich_api_key)
         self.photos = PhotoService(self.cfg, self.db, self.meili, immich)
-        self.search = SearchService(self.cfg, self.meili, self.db)
+        self.notifier = notifier or Notifier(settings.notify_url, settings.notify_format,
+                                             f"{settings.public_origin}/parent#activity")
+        self.activity = ActivityService(self.db, self.notifier)
+        self.search = SearchService(self.cfg, self.meili, self.db, self.activity)
         self.library = LibraryService(self.db, self.meili, settings.library_dir)
         self.parent = ParentService(self.cfg, self.db, self.meili, self.photos)
         self.limiter = RateLimiter()
@@ -103,9 +109,10 @@ class App:
 
 
 def create_app(settings: Settings | None = None, verifier: AccessVerifier | None = None,
-               immich: Immich | None = None, meili: Meili | None = None) -> FastAPI:
+               immich: Immich | None = None, meili: Meili | None = None,
+               notifier: Notifier | None = None) -> FastAPI:
     settings = settings or load_settings()
-    core = App(settings, verifier, immich, meili)
+    core = App(settings, verifier, immich, meili, notifier)
     @contextlib.asynccontextmanager
     async def lifespan(_app):
         try:
@@ -284,7 +291,8 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
                 item["url"] = tile["url"]
             tiles.append(item)
         return JSONResponse({"site_name": t["site_name"], "tagline": t["tagline"],
-                             "wordmark": t["wordmark"], "tiles": tiles},
+                             "wordmark": t["wordmark"], "tiles": tiles,
+                             "monitoring_notice": core.activity.enabled() and core.activity.show_notice()},
                             headers={"Cache-Control": NO_STORE})
 
     @app.get("/api/search")
@@ -341,6 +349,31 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
                             (kind, text)).fetchone()
             if not dup:
                 c.execute("INSERT INTO requests(ts, kind, text) VALUES (?,?,?)", (now_iso(), kind, text))
+        if not dup:
+            core.activity.request_made(text)
+        return JSONResponse({"ok": True})
+
+    @app.post("/api/activity")
+    async def api_activity(request: Request):
+        """She opened a result / concise tile. Logged only when monitoring is on,
+        and only for links she could actually have been shown."""
+        i = ident(request)
+        body = await json_body(request, 4096)
+        if not core.activity.enabled():
+            return JSONResponse({"ok": True})
+        if not core.limiter.allow("activity", i.email, 120):
+            return JSONResponse({"ok": True})
+        url = str(body.get("url", ""))[:2048]
+        q = normalize_query(str(body.get("q", "")))[:MAX_QUERY]
+        tile = str(body.get("tile", ""))[:32]
+        if url.startswith("/library/") or url.startswith("/api/library/"):
+            ok = True
+        else:
+            host = (urlsplit(url).hostname or "").lower() if url.startswith("https://") else ""
+            ok = host in core.cfg.approved_hosts()
+        if ok:
+            label = (core.search.tile(tile) or {}).get("label", "") if tile else ""
+            core.activity.record("open", q=q, url=url, tile=label)
         return JSONResponse({"ok": True})
 
     @app.get("/api/photos/{opaque}/{kind}")
@@ -386,8 +419,9 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
         st = core.parent.state(settings.cf_team_domain, public_host, lib)
         st["library"] = [{k: r[k] for k in ("id", "kind", "title", "note", "url", "host", "file_size",
                                             "created", "created_by")} for r in lib]
-        with core.db.conn() as c:
-            st["history_count"] = c.execute("SELECT COUNT(*) FROM search_history").fetchone()[0]
+        st["activity"] = core.activity.summary()
+        st["notify_configured"] = core.notifier.configured
+        st["notify_last_error"] = core.notifier.last_error
         st["immich_configured"] = settings.immich_configured
         counts = {}
         for t in st["tiles"]["tiles"]:
@@ -499,18 +533,22 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
         core.parent.ingest_crawl_status()
         return JSONResponse({"rows": core.db.audit_rows(max(1, min(limit, 1000)), kind or None)})
 
-    @app.get("/api/parent/history")
-    def p_history():
-        with core.db.conn() as c:
-            rows = [dict(r) for r in c.execute(
-                "SELECT ts, q, type FROM search_history ORDER BY id DESC LIMIT 500")]
-        return JSONResponse({"rows": rows})
+    @app.get("/api/parent/activity")
+    def p_activity(flagged: int = 0, limit: int = 300, before: int = 0):
+        return JSONResponse({"rows": core.activity.rows(bool(flagged), limit, before or None)})
 
-    @app.post("/api/parent/history/clear")
-    def p_history_clear(request: Request):
-        with core.db.conn() as c:
-            c.execute("DELETE FROM search_history")
-        core.db.audit(ident(request).email, "parent", "search history cleared")
+    @app.post("/api/parent/activity/clear")
+    def p_activity_clear(request: Request):
+        core.activity.clear()
+        core.db.audit(ident(request).email, "parent", "activity log cleared")
+        return JSONResponse({"ok": True})
+
+    @app.post("/api/parent/notify/test")
+    def p_notify_test(request: Request):
+        if not core.notifier.configured:
+            return _err(400, "No notification address yet: set NOTIFY_URL in /etc/family-search/backend.env.")
+        core.notifier.notify("test", force=True)
+        core.db.audit(ident(request).email, "parent", "test notification sent")
         return JSONResponse({"ok": True})
 
     @app.api_route("/{rest:path}", methods=["GET", "HEAD", "POST"])

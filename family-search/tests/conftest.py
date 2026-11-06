@@ -145,12 +145,12 @@ def fake_immich():
 
 @pytest.fixture
 def make_app(env, keys, fake_meili, fake_immich):
-    def _make(**overrides):
+    def _make(notifier=None, **overrides):
         s = replace(load_settings(), **overrides)
         verifier = AccessVerifier(TEAM, AUD, fetch_jwks=keys.fetch) if s.auth_configured else None
         immich = Immich(IMMICH_URL, IMMICH_KEY, transport=fake_immich.transport())
         meili = Meili("http://127.0.0.1:7700", "k", transport=fake_meili.transport())
-        return create_app(s, verifier=verifier, immich=immich, meili=meili)
+        return create_app(s, verifier=verifier, immich=immich, meili=meili, notifier=notifier)
     return _make
 
 

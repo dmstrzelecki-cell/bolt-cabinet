@@ -63,6 +63,8 @@ and secrets are never overwritten.
 | `/etc/family-search/backend.env` | `ALLOWED_EMAILS` | optional extra guard: the child's login email |
 | `/etc/family-search/backend.env` | `IMMICH_URL` | `http://<CT101 IP>:2283` |
 | `/etc/family-search/backend.env` | `IMMICH_API_KEY` | the restricted key (Immich step below) |
+| `/etc/family-search/backend.env` | `NOTIFY_URL` | optional — where flagged-activity alerts go (see **Notifications**) |
+| `/etc/family-search/site.env` | `NOTIFY_LAN_TARGET` | only if that address is on your LAN: its `ip:port` |
 
 Edit these with `nano` inside the CT. Never paste them into chat or commit them.
 Until the Access values are set, the app answers **503** to everything (it
@@ -98,8 +100,19 @@ Then `pct reboot <CTID>` and run `verify.sh` again.
 - [ ] Block other browsers on her phone.
 - [ ] Sign in on her phone, enter the one-time code, and use **Add to Home screen**.
 
+## Notifications (optional)
+Turn on **Activity monitoring** on `/parent` → Activity, then point `NOTIFY_URL` at your phone:
+- **ntfy (recommended):** install the ntfy app, subscribe to a long random topic, and set
+  `NOTIFY_URL=https://ntfy.sh/<long-random-topic>` (or your own ntfy server on the LAN, plus
+  `NOTIFY_LAN_TARGET=<ip>:<port>` in `site.env`). `NOTIFY_FORMAT=ntfy`.
+- **Home Assistant / Discord / Slack-style webhook:** `NOTIFY_FORMAT=json`.
+
+Then run `systemctl restart family-search` (re-run `install.sh` if you set `NOTIFY_LAN_TARGET`) and press **Send a test**.
+By default a notification says only *that* something was flagged and links to `/parent#activity`. Her words are
+sent only if you tick "Include what she typed", because ntfy.sh, Discord and the like are third parties.
+
 ## Operating it
-- **/parent** (parents only) covers requests, sites (add/edit/disable/remove, crawl now, status), the Family Link list, library (links, notes, PDFs up to 25 MB), photo albums and sync, blocked words and synonyms, home-page tiles (each tile is **Broad** — results from a list of sites shown in our search — or **Concise** — opens one page directly; broad tiles can be narrowed to whole sites, categories, or just sections of a site, with a live "finds N pages" count), the search-history toggle (off by default), and the audit log (parent changes, crawls, syncs, denied access).
+- **/parent** (parents only) covers requests, sites (add/edit/disable/remove, crawl now, status), the Family Link list, library (links, notes, PDFs up to 25 MB), photo albums and sync, blocked words and synonyms, home-page tiles (each tile is **Broad** — results from a list of sites shown in our search — or **Concise** — opens one page directly; broad tiles can be narrowed to whole sites, categories, or just sections of a site, with a live "finds N pages" count), **Activity** (monitoring switch, off by default: her searches, tile taps, pages opened and Ask-a-grown-up taps; blocked and **watch words** flagged; optional phone notifications; 30/90/365-day retention), and the audit log (parent changes, crawls, syncs, denied access).
 - **Crawls** run nightly from 01:10. Each host refreshes weekly on its own night. The first crawl is spread over several nights (4 h budget per night). `simple.wikipedia.org` is imported from the official Wikimedia dump, checksum-verified, and its links point to the live pages.
 - **Backups** run nightly to `/var/backups/family-search` and keep the last 14. Restore with `scripts/restore.sh <file>`, adding `--with-secrets` to restore the env files too.
 - **Rebuild the index** with `scripts/rebuild-index.sh`. Nothing is lost, because the index is only a cache.
@@ -108,6 +121,6 @@ Then `pct reboot <CTID>` and run `verify.sh` again.
 ## Development
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r <(sed 's/ --hash.*//' backend/requirements.lock) pytest
-.venv/bin/pytest tests/                      # 66 tests, fakes for Meilisearch / Immich / the web
+.venv/bin/pytest tests/                      # 75 tests, fakes for Meilisearch / Immich / the web
 PYTHON=.venv/bin/python tests/e2e/run.sh     # Chromium at 360 px (needs Node + Playwright)
 ```

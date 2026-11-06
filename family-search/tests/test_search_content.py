@@ -226,17 +226,6 @@ def test_ask_a_grownup_saves_only_on_tap(child, parent, core):
     assert parent.post("/api/parent/requests", json={"action": "approve", "id": reqs[0]["id"]}).status_code == 200
 
 
-def test_search_history_off_by_default_and_parent_toggle(child, parent, core):
-    child.get("/api/search?q=volcanoes")
-    with core.db.conn() as c:
-        assert c.execute("SELECT COUNT(*) FROM search_history").fetchone()[0] == 0
-    parent.post("/api/parent/settings", json={"store_history": True})
-    child.get("/api/search?q=volcanoes")
-    assert [r["q"] for r in parent.get("/api/parent/history").json()["rows"]] == ["volcanoes"]
-    parent.post("/api/parent/settings", json={"store_history": False})
-    with core.db.conn() as c:
-        assert c.execute("SELECT COUNT(*) FROM search_history").fetchone()[0] == 0
-
 
 def test_parent_changes_are_audited_and_backed_up(parent, core):
     r = parent.post("/api/parent/sites", json={"action": "add", "host": "www.example.org",

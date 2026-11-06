@@ -28,7 +28,7 @@
   <button type="button" data-sec="photos">Photos</button>
   <button type="button" data-sec="filters">Filters</button>
   <button type="button" data-sec="tiles">Home page</button>
-  <button type="button" data-sec="settings">Privacy</button>
+  <button type="button" data-sec="activity">Activity <span class="badge warn" id="act-badge" hidden></span></button>
   <button type="button" data-sec="audit">Audit</button>
 </nav>
 
@@ -112,10 +112,12 @@
   </section>
 
   <section id="sec-filters" class="sec" aria-labelledby="h-f" hidden>
-    <h2 id="h-f">Blocked words and synonyms</h2>
+    <h2 id="h-f">Blocked words, watch words and synonyms</h2>
     <form class="card" id="filters-form">
-      <label>Blocked words or phrases — one per line
+      <label>Blocked words or phrases — one per line. She sees a calm "ask a grown-up" message instead of results.
         <textarea name="blocked" rows="8"></textarea></label>
+      <label>Watch words — one per line. Searches work as normal, but are flagged in the Activity log (and can notify you). Good for names of people, apps, or worrying topics.
+        <textarea name="watch" rows="6"></textarea></label>
       <label>Synonyms — one per line, like <code>kitten: cat, kitty</code>
         <textarea name="synonyms" rows="6"></textarea></label>
       <button class="btn btn-primary">Save filters</button>
@@ -132,10 +134,33 @@
     </div>
   </section>
 
-  <section id="sec-settings" class="sec" aria-labelledby="h-s" hidden>
-    <h2 id="h-s">Privacy</h2>
-    <label class="check card"><input type="checkbox" id="store-history"> Keep a history of her searches (off by default; turning it off deletes the history)</label>
-    <div id="history"></div>
+  <section id="sec-activity" class="sec" aria-labelledby="h-act" hidden>
+    <h2 id="h-act">Her activity</h2>
+    <div class="card">
+      <label class="check"><input type="checkbox" id="store-history"> <span><b>Activity monitoring</b> — log the searches she submits, tiles she taps and pages she opens</span></label>
+      <p class="muted" id="act-summary"></p>
+      <label class="lbl">Keep the log for
+        <select id="retention"><option value="30">30 days</option><option value="90">90 days</option><option value="365">1 year</option></select></label>
+      <label class="check"><input type="checkbox" id="show-notice"> <span>Show "Grown-ups can see what's searched here" on her page</span></label>
+    </div>
+    <div class="card">
+      <h3>Notify me</h3>
+      <p class="muted" id="notify-status"></p>
+      <label class="check"><input type="checkbox" id="n-blocked"> <span>When she searches a <b>blocked</b> word</span></label>
+      <label class="check"><input type="checkbox" id="n-watch"> <span>When she searches a <b>watch</b> word</span></label>
+      <label class="check"><input type="checkbox" id="n-request"> <span>When she taps <b>Ask a grown-up</b></span></label>
+      <label class="check"><input type="checkbox" id="n-text"> <span>Include what she typed in the notification (off: it only says something needs a look)</span></label>
+      <div class="row-actions">
+        <button type="button" class="btn btn-primary" id="notify-save">Save</button>
+        <button type="button" class="btn btn-ghost" id="notify-test">Send a test</button>
+      </div>
+    </div>
+    <div class="row-actions">
+      <label class="check"><input type="checkbox" id="act-flagged"> <span>Flagged only</span></label>
+      <button type="button" class="btn btn-ghost" id="act-refresh">Refresh</button>
+      <button type="button" class="btn btn-ghost" id="act-clear">Clear log</button>
+    </div>
+    <div id="activity"></div>
   </section>
 
   <section id="sec-audit" class="sec" aria-labelledby="h-a" hidden>

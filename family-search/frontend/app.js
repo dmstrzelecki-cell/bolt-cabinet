@@ -110,11 +110,24 @@ async function init() {
   else showHome();
 }
 
+/* Tell the server which page she opened (only kept if a parent turned on
+ * activity monitoring). keepalive lets it finish after the page changes, and
+ * it never delays or blocks the tap. */
+function logOpen(url, q, tile) {
+  if (!ME || !url) return;
+  try {
+    fetch("/api/activity", { method: "POST", keepalive: true, credentials: "same-origin",
+      redirect: "manual", headers: { "Content-Type": "application/json", "X-CSRF-Token": ME.csrf },
+      body: JSON.stringify({ url, q: q || "", tile: tile || "" }) }).catch(() => {});
+  } catch (_) { /* never block navigation */ }
+}
+
 function applyBrand() {
   const [a, b] = CFG.wordmark && CFG.wordmark.length ? CFG.wordmark : ["family", "search"];
   $("wm-a").textContent = a || "";
   $("wm-b").textContent = b || "";
   $("tagline").textContent = CFG.tagline || "";
+  $("monitor-note").hidden = !CFG.monitoring_notice;
   document.title = CFG.site_name || "Search";
 }
 
@@ -260,7 +273,7 @@ function tileTap(t) {
     curious(t.id);
   } else if (t.action === "open_url") {
     const href = safeHref(t.url);
-    if (href) window.location.assign(href);
+    if (href) { logOpen(href, "", t.id); window.location.assign(href); }
   } else {
     state.tile = t.id; state.type = "all"; state.page = 1;
     state.q = t.action === "filter" ? $("q").value.trim() : "";
@@ -274,7 +287,7 @@ async function curious(tileId) {
   try {
     const r = await api("/api/curious" + (tileId ? `?tile=${encodeURIComponent(tileId)}` : ""));
     const href = safeHref(r.url);
-    if (href) window.location.assign(href);
+    if (href) { logOpen(href, "", tileId); window.location.assign(href); }
   } catch (e) {
     showResultsShell();
     showProblem(e, "Nothing to explore yet — check back after tonight's update!");
@@ -374,6 +387,7 @@ function resultItem(r) {
     title.href = `/api/library/${encodeURIComponent(r.id)}/file`;
     title.target = "_blank";
   }
+  title.addEventListener("click", () => logOpen(title.getAttribute("href"), state.q, state.tile));
   const siteName = isLib ? "Family library" : r.site;
   const initial = isLib ? "★" : r.initial || (siteName || "?").slice(0, 1).toUpperCase();
   return el("li", { class: "result" + (isLib ? " lib" : "") },

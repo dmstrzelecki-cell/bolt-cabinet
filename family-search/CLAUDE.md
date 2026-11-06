@@ -21,8 +21,10 @@ deploys to its own CT at `/opt/family-search`.
 - **Child safety:** default deny — a result appears only if its final URL is
   on the approved list. No live web search, fallback engine, or AI answers.
   No accounts, comments, chat, uploads, sharing, or profiles for the child.
-  No stored search history unless David turns it on at `/parent`. No family
-  data to third parties.
+  No stored search history unless David turns it on at `/parent` (Activity
+  monitoring — see **Activity**). No family data to third parties: a
+  notification says only that something was flagged unless a parent opts in
+  to including the text.
 - **Secrets:** generated on the CT into root-owned mode-600 env files. Never
   committed, printed, or logged. Values David must supply are `__SET_ME__`
   placeholders — report them, never ask for them in chat.
@@ -120,6 +122,19 @@ hosts are ignored (default deny). `/parent` shows how many pages each tile
 reaches, so a mistyped section shows up as "finds 0 pages". Changing the
 indexed document shape means bumping `DOC_VERSION` in `crawler.py`.
 
+## Activity
+`activity.py` + `notify.py`. Off by default; the `store_history` setting is
+the master switch. When on, logs submitted searches (page 1 only), tile taps,
+pages she opens (`POST /api/activity`, sent with `keepalive` so it never
+delays the tap; only approved URLs are recorded) and Ask-a-grown-up taps —
+never autocomplete keystrokes. Every search is checked against `blocked`
+(no results, flagged) and `watch` (results shown, flagged) in
+`blocked_terms.yaml`. Flags can notify via `NOTIFY_URL` (ntfy or JSON
+webhook, in the root-only env file — it is a secret); bursts are coalesced
+to one message per 5 minutes. Log retention 30/90/365 days. Turning
+monitoring off stops recording but keeps the log until a parent clears it.
+An optional "Grown-ups can see what's searched here" line shows on her page.
+
 ## Source of truth
 `config/` + `app.db` + `crawl.db` + library files. The Meilisearch index is a
 cache: `scripts/rebuild-index.sh` recreates it. Never edit the index directly.
@@ -135,6 +150,6 @@ cache: `scripts/rebuild-index.sh` recreates it. Never edit the index directly.
 - Don't touch Cloudflare, Family Link, or Immich settings — those are David's manual steps.
 
 ## Tests
-`pytest tests/` (65 tests, fakes for Meilisearch/Immich/web) and
+`pytest tests/` (75 tests, fakes for Meilisearch/Immich/web) and
 `tests/e2e/run.sh` (Chromium at 360 px). On the CT: `scripts/verify.sh`.
 Results go in `TEST-RESULTS.md`.

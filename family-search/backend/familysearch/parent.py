@@ -177,6 +177,7 @@ class ParentService:
         from .config import parse_filters
         import yaml
         doc = parse_filters(yaml.safe_dump({"blocked": body.get("blocked") or [],
+                                            "watch": body.get("watch") or [],
                                             "synonyms": body.get("synonyms") or {}}))
         with self.cfg.write_lock:
             before = self.cfg.filters()
@@ -188,6 +189,8 @@ class ParentService:
         self.db.audit(actor, "parent", "filters saved", {
             "blocked_added": sorted(set(doc["blocked"]) - set(before["blocked"])),
             "blocked_removed": sorted(set(before["blocked"]) - set(doc["blocked"])),
+            "watch_added": sorted(set(doc["watch"]) - set(before.get("watch", []))),
+            "watch_removed": sorted(set(before.get("watch", [])) - set(doc["watch"])),
             "synonyms": len(doc["synonyms"]),
         })
 
@@ -209,13 +212,38 @@ class ParentService:
                                                    for t in doc["tiles"]]})
 
     def save_settings(self, actor: str, body: dict) -> None:
+        from .activity import DEFAULT_NOTIFY, RETENTION_CHOICES
         if "store_history" in body:
             val = bool(body["store_history"])
             self.db.set_setting("store_history", val)
-            self.db.audit(actor, "parent", "search history " + ("enabled" if val else "disabled"))
-            if not val:
-                with self.db.conn() as c:
-                    c.execute("DELETE FROM search_history")
+            self.db.audit(actor, "parent", "activity monitoring " + ("on" if val else "off"))
+        if "notify" in body:
+            raw = body["notify"] if isinstance(body["notify"], dict) else {}
+            opts = {k: bool(raw.get(k, v)) for k, v in DEFAULT_NOTIFY.items()}
+            self.db.set_setting("notify", opts)
+            self.db.audit(actor, "parent", "notification settings saved", opts)
+        if "retention_days" in body:
+            try:
+                days = int(body["retention_days"])
+            except (TypeError, ValueError):
+                days = 0
+            if days not in RETENTION_CHOICES:
+                raise ConfigError(f"Keep the log for {', '.join(map(str, RETENTION_CHOICES))} days.")
+            self.db.set_setting("retention_days", days)
+            self.db.audit(actor, "parent", "activity log retention", {"days": days})
+        if "show_notice" in body:
+            val = bool(body["show_notice"])
+            self.db.set_setting("show_notice", val)
+            self.db.audit(actor, "parent", "monitoring notice " + ("shown" if val else "hidden"))
+
+    def _settings(self) -> dict:
+        from .activity import DEFAULT_NOTIFY, DEFAULT_RETENTION
+        return {
+            "store_history": bool(self.db.get_setting("store_history", False)),
+            "notify": {**DEFAULT_NOTIFY, **(self.db.get_setting("notify") or {})},
+            "retention_days": self.db.get_setting("retention_days", DEFAULT_RETENTION),
+            "show_notice": bool(self.db.get_setting("show_notice", True)),
+        }
 
     # -- read model --------------------------------------------------------------
     def state(self, team_domain: str | None, public_host: str, library_rows: list[dict]) -> dict:
@@ -260,7 +288,7 @@ class ParentService:
             "requests": reqs,
             "filters": self.cfg.filters(),
             "tiles": self.cfg.tiles(),
-            "settings": {"store_history": bool(self.db.get_setting("store_history", False))},
+            "settings": self._settings(),
         }
 
     def _crawl_status(self) -> dict:

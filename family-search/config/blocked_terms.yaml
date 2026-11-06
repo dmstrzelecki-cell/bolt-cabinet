@@ -1,7 +1,13 @@
-# blocked: a search containing any of these words or phrases shows a calm
-#          'ask a grown-up' message instead of results. Edited on /parent.
+# blocked:  a search containing any of these words or phrases shows a calm
+#           'ask a grown-up' message instead of results. Flagged in the
+#           activity log (and notified) when monitoring is on.
+# watch:    searches work as normal, but are flagged for a parent to see (and
+#           notified) when monitoring is on — names, apps, worrying topics.
 # synonyms: word -> words that should also match (works both ways).
+# All three are edited on /parent → Filters.
 blocked: [porn, porno, xxx, nsfw, nude, nudes, naked, hentai, gore, sexy, onlyfans]
+watch: [suicide, kill myself, self harm, hurt myself, how to die, run away, meet up, meet me,
+  my address, phone number, send pics, snapchat, instagram, tiktok, discord, vape, bully, bullying]
 synonyms:
   kitten: [cat]
   puppy: [dog]

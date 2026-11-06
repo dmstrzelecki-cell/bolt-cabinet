@@ -13,8 +13,8 @@ are simulated with in-process fakes; Chromium is real.
 ## Summary
 | Suite | Result |
 |---|---|
-| `pytest tests/` — unit + acceptance with fakes | **66 passed, 0 failed** |
-| `tests/e2e/run.sh` — real Chromium at 360 px against the real app | **31 passed, 0 failed** |
+| `pytest tests/` — unit + acceptance with fakes | **75 passed, 0 failed** |
+| `tests/e2e/run.sh` — real Chromium at 360 px against the real app | **37 passed, 0 failed** |
 | `pip-audit` on `backend/requirements.lock` | **No known vulnerabilities found** (python-multipart 0.0.20 was flagged and bumped to 0.0.33) |
 | `shellcheck -S warning scripts/*.sh` | clean |
 | `nft -c` on the rendered firewall | syntax OK |
@@ -49,6 +49,11 @@ are simulated with in-process fakes; Chromium is real.
 | A guessed opaque ID returns 404 | PASS (local) | `test_guessed_opaque_id_returns_404` |
 | Removing an album immediately returns 404 for its thumbnails | PASS (local) | `test_removing_an_album_immediately_404s_its_thumbnails`, `test_album_disabled_by_hand_edit_is_revoked_even_with_stale_rows` |
 | Downloaded thumbnails contain no EXIF or GPS metadata | PASS (local) | `test_thumbnails_have_no_exif_or_gps` (source JPEG carried GPS + camera EXIF) |
+| **Activity monitoring (added after the brief)** | | |
+| Nothing logged until a parent turns monitoring on | PASS (local) | `test_nothing_is_logged_until_a_parent_turns_monitoring_on` |
+| Searches, tile taps, opened pages and asks logged; blocked and watch words flagged; autocomplete never logged | PASS (local) | `test_logs_searches_tiles_opens_and_flags`, e2e activity flow |
+| Notifications carry no search text unless opted in; bursts coalesced | PASS (local) | `test_notifications_*` |
+| Real notification reaches David's phone | **pending on CT** | set `NOTIFY_URL`, press **Send a test** |
 | **Phone and recovery** | | |
 | Login, search, tiles, photos, links work in Chrome on her phone, Wi-Fi and cellular | **pending — David, on her phone** | after the manual Cloudflare + Family Link steps |
 | No horizontal scrolling at 360 px | PASS (local, Chromium) | e2e: home, results, parent page at 360 px |
@@ -86,6 +91,16 @@ test_access_security.py · test_internal_services_not_reachable_through_app — 
 test_access_security.py · test_methods_other_than_get_post_refused — PASS
 test_access_security.py · test_query_length_and_rate_limits — PASS
 test_access_security.py · test_docs_and_openapi_disabled — PASS
+test_activity.py · test_nothing_is_logged_until_a_parent_turns_monitoring_on — PASS
+test_activity.py · test_logs_searches_tiles_opens_and_flags — PASS
+test_activity.py · test_watch_words_do_not_block_results — PASS
+test_activity.py · test_notifications_say_only_that_something_needs_a_look — PASS
+test_activity.py · test_notifications_can_include_the_text_when_a_parent_chooses — PASS
+test_activity.py · test_notifications_are_coalesced_and_respect_choices — PASS
+test_activity.py · test_test_notification_and_unconfigured — PASS
+test_activity.py · test_monitoring_off_keeps_log_until_cleared_and_settings_validate — PASS
+test_activity.py · test_child_cannot_read_activity — PASS
+test_activity.py · test_notify_url_never_reaches_the_browser — PASS
 test_backup_restore.py · test_backup_then_restore_round_trip — PASS
 test_crawler.py · test_redirect_to_unapproved_host_is_not_indexed — PASS
 test_crawler.py · test_redirect_to_http_is_refused — PASS
@@ -128,7 +143,6 @@ test_search_content.py · test_snippets_are_short_and_never_the_full_body — PA
 test_search_content.py · test_each_tile_performs_its_configured_action — PASS
 test_search_content.py · test_library_items — PASS
 test_search_content.py · test_ask_a_grownup_saves_only_on_tap — PASS
-test_search_content.py · test_search_history_off_by_default_and_parent_toggle — PASS
 test_search_content.py · test_parent_changes_are_audited_and_backed_up — PASS
 test_search_content.py · test_tiles_editable_without_code_changes — PASS
 test_search_content.py · test_index_rebuilds_from_config_and_sqlite — PASS
@@ -140,7 +154,7 @@ test_search_content.py · test_concise_tiles_open_one_approved_page — PASS
 
 ## Raw output — Chromium e2e (360 px)
 ```
-PASS  home page loads in under 1 s (local)  (141 ms)
+PASS  home page loads in under 1 s (local)  (179 ms)
 PASS  12 tiles in a 2-column grid at 360px
 PASS  home: no horizontal scroll at 360px
 PASS  home: tap targets >= 44px  ([])
@@ -170,5 +184,11 @@ PASS  flipping to Concise shows the one-link field
 PASS  Concise warns when the site isn't approved
 PASS  flipping back to Broad keeps the sections
 PASS  tile editor: no horizontal scroll at 360px
+PASS  her page shows the monitoring notice
+PASS  watch-word search still shows results
+PASS  parent sees her search, flagged with the watch word
+PASS  parent sees the page she opened
+PASS  flagged-only filter works
+PASS  activity tab: no horizontal scroll at 360px
 PASS  child gets 403 on /parent
 ```

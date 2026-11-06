@@ -85,20 +85,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function showSection(sec, push) {
+  if (sec === "settings") sec = "activity";
   if (!$("sec-" + sec)) sec = "requests";
   for (const s of document.querySelectorAll(".sec")) s.hidden = s.id !== "sec-" + sec;
   for (const b of $("ptabs").querySelectorAll("button"))
     b.setAttribute("aria-pressed", String(b.dataset.sec === sec));
   if (push) history.replaceState(null, "", "#" + sec);
   if (sec === "audit") loadAudit();
-  if (sec === "settings") loadHistory();
+  if (sec === "settings") sec = "activity";
+  if (sec === "activity") loadActivity();
 }
 
 async function load() {
   try { S = await api("/api/parent/state"); } catch (e) { toast(e.message, true); return; }
   renderRequests(); renderSites(); renderFamilyLink(); renderLibrary(); renderAlbums();
   renderFilters(); tilesDraft = JSON.parse(JSON.stringify(S.tiles.tiles)); renderTiles();
-  $("store-history").checked = !!S.settings.store_history;
+  renderActivitySettings();
 }
 
 /* ------------------------------------------------------------- forms */
@@ -158,7 +160,8 @@ function wireForms() {
       if (!k || !v) continue;
       synonyms[k.trim()] = v.split(",").map((s) => s.trim()).filter(Boolean);
     }
-    act(() => api("/api/parent/filters", { blocked, synonyms }), "Filters saved.");
+    const watch = ev.target.watch.value.split("\n").map((s) => s.trim()).filter(Boolean);
+    act(() => api("/api/parent/filters", { blocked, watch, synonyms }), "Filters saved.");
   });
   $("tile-add").addEventListener("click", () => {
     let n = tilesDraft.length + 1;
@@ -171,9 +174,25 @@ function wireForms() {
     act(() => api("/api/parent/tiles", { tiles: tilesDraft }), "Tiles saved."));
   $("store-history").addEventListener("change", (ev) => {
     const on = ev.target.checked;
-    if (!on && !confirm("Turn off history and delete what is saved?")) { ev.target.checked = true; return; }
     act(() => api("/api/parent/settings", { store_history: on }),
-      on ? "Search history is on." : "Search history is off and cleared.").then(loadHistory);
+      on ? "Activity monitoring is on." : "Monitoring is off. The existing log is kept until you clear it.")
+      .then(loadActivity);
+  });
+  $("retention").addEventListener("change", (ev) =>
+    act(() => api("/api/parent/settings", { retention_days: Number(ev.target.value) }), "Saved."));
+  $("show-notice").addEventListener("change", (ev) =>
+    act(() => api("/api/parent/settings", { show_notice: ev.target.checked }), "Saved."));
+  $("notify-save").addEventListener("click", () =>
+    act(() => api("/api/parent/settings", { notify: {
+      blocked: $("n-blocked").checked, watch: $("n-watch").checked,
+      request: $("n-request").checked, include_text: $("n-text").checked } }), "Notification settings saved."));
+  $("notify-test").addEventListener("click", () =>
+    act(() => api("/api/parent/notify/test", {}), "Test sent — check your phone."));
+  $("act-flagged").addEventListener("change", loadActivity);
+  $("act-refresh").addEventListener("click", () => load().then(loadActivity));
+  $("act-clear").addEventListener("click", () => {
+    if (confirm("Delete the whole activity log?"))
+      act(() => api("/api/parent/activity/clear", {}), "Activity log cleared.").then(loadActivity);
   });
   $("audit-kind").addEventListener("change", loadAudit);
 }
@@ -327,6 +346,7 @@ function renderAlbums() {
 function renderFilters() {
   const f = $("filters-form");
   f.blocked.value = S.filters.blocked.join("\n");
+  f.watch.value = (S.filters.watch || []).join("\n");
   f.synonyms.value = Object.entries(S.filters.synonyms).map(([k, v]) => `${k}: ${v.join(", ")}`).join("\n");
 }
 
@@ -436,21 +456,57 @@ function tileCountLine(t) {
 }
 
 /* ------------------------------------------------------------- history + audit */
-async function loadHistory() {
-  const box = $("history");
-  if (!$("store-history").checked) { box.replaceChildren(); return; }
+function renderActivitySettings() {
+  const st = S.settings;
+  $("store-history").checked = !!st.store_history;
+  $("retention").value = String(st.retention_days);
+  $("show-notice").checked = !!st.show_notice;
+  $("n-blocked").checked = !!st.notify.blocked;
+  $("n-watch").checked = !!st.notify.watch;
+  $("n-request").checked = !!st.notify.request;
+  $("n-text").checked = !!st.notify.include_text;
+  const a = S.activity || {};
+  $("act-summary").textContent = st.store_history
+    ? `Last 7 days: ${a.searches_7d || 0} searches, ${a.flagged_7d || 0} flagged.`
+    : "Off — nothing she does is being recorded.";
+  $("act-badge").hidden = !a.flagged_7d;
+  $("act-badge").textContent = String(a.flagged_7d || "");
+  $("notify-status").textContent = S.notify_configured
+    ? (S.notify_last_error ? `Notifications are set up, but the last one failed (${S.notify_last_error}).`
+      : "Notifications are set up.")
+    : "Not set up yet: put your ntfy topic or webhook address in NOTIFY_URL in /etc/family-search/backend.env, then restart the service. Until then, flagged items still show below.";
+  $("notify-test").disabled = !S.notify_configured;
+}
+
+const KIND_LABEL = { search: "Searched", tile: "Tapped tile", open: "Opened", ask: "Asked a grown-up" };
+const FLAG_LABEL = { blocked: "blocked word", watch: "watch word", request: "ask" };
+
+async function loadActivity() {
+  const box = $("activity");
   let r;
-  try { r = await api("/api/parent/history"); } catch (e) { toast(e.message, true); return; }
+  try { r = await api("/api/parent/activity?limit=300" + ($("act-flagged").checked ? "&flagged=1" : "")); }
+  catch (e) { toast(e.message, true); return; }
+  if (!r.rows.length) {
+    box.replaceChildren(el("p", { class: "muted", text: S && S.settings.store_history
+      ? "Nothing logged yet." : "Monitoring is off, so nothing is being logged." }));
+    return;
+  }
   const ul = el("ul", { class: "items" });
-  for (const h of r.rows) ul.append(el("li", { class: "item" },
-    el("div", { class: "grow" }, el("div", { class: "title", text: h.q }),
-      el("div", { class: "meta", text: `${when(h.ts)} · ${h.type}` }))));
-  box.replaceChildren(
-    el("div", { class: "row-actions" }, btn("Clear history", () => {
-      if (confirm("Delete all saved searches?"))
-        act(() => api("/api/parent/history/clear", {}), "History cleared.").then(loadHistory);
-    })),
-    r.rows.length ? ul : el("p", { class: "muted", text: "No searches saved yet." }));
+  for (const a of r.rows) {
+    let what = a.q || a.tile || "";
+    if (a.kind === "open") what = a.url;
+    const bits = [when(a.ts), KIND_LABEL[a.kind] || a.kind];
+    if (a.tab && a.tab !== "all") bits.push(a.tab);
+    if (a.tile && a.kind !== "tile") bits.push(`tile: ${a.tile}`);
+    if (a.kind === "open" && a.q) bits.push(`from search “${a.q}”`);
+    if (a.results !== null && a.results !== undefined && a.kind !== "open") bits.push(`${a.results} results`);
+    ul.append(el("li", { class: "item" + (a.flag && a.flag !== "request" ? " flagged" : "") },
+      el("div", { class: "grow" },
+        el("div", { class: "title" }, document.createTextNode(what + " "),
+          a.flag ? el("span", { class: "pill bad", text: FLAG_LABEL[a.flag] + (a.term ? `: ${a.term}` : "") }) : null),
+        el("div", { class: "meta", text: bits.join(" · ") }))));
+  }
+  box.replaceChildren(ul);
 }
 
 async function loadAudit() {

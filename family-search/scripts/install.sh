@@ -107,6 +107,8 @@ setkey "$ETC/backend.env" PARENT_EMAILS "__SET_ME__"
 setkey "$ETC/backend.env" ALLOWED_EMAILS ""
 setkey "$ETC/backend.env" IMMICH_URL "__SET_ME__"
 setkey "$ETC/backend.env" IMMICH_API_KEY "__SET_ME__"
+setkey "$ETC/backend.env" NOTIFY_URL "__SET_ME__"
+setkey "$ETC/backend.env" NOTIFY_FORMAT "ntfy"
 setkey "$ETC/crawler.env" FS_CRAWL_MAX_MINUTES "240"
 unset MEILI_KEY
 note "secrets live in $ETC/{meilisearch,backend,crawler}.env (mode 600)"
@@ -153,6 +155,8 @@ RENDER=$(sed -e "s|@APP_RULE@|${APP_RULE}|" -e "s|@SSH_RULE@|${SSH_RULE}|" \
              -e "s|@DNS_IP@|${DNS_IP:-192.168.0.40}|g" "$DEST/nftables/family-search.nft.in")
 if placeholder "${IMMICH_IP:-}"; then RENDER=$(grep -v '@IMMICH_IP@' <<<"$RENDER")
 else RENDER=${RENDER//@IMMICH_IP@/$IMMICH_IP}; fi
+if placeholder "${NOTIFY_LAN_TARGET:-}"; then RENDER=$(grep -v '@NOTIFY_IP@' <<<"$RENDER")
+else RENDER=${RENDER//@NOTIFY_IP@/${NOTIFY_LAN_TARGET%:*}}; RENDER=${RENDER//@NOTIFY_PORT@/${NOTIFY_LAN_TARGET##*:}}; fi
 printf '%s\n' "$RENDER" > /etc/nftables.d/family-search.nft
 nft -c -f /etc/nftables.d/family-search.nft
 grep -q 'include "/etc/nftables.d/\*.nft"' /etc/nftables.conf 2>/dev/null || \
@@ -194,6 +198,8 @@ for kv in "backend.env:CF_ACCESS_TEAM_DOMAIN" "backend.env:CF_ACCESS_AUD" "backe
     note "• $ETC/$f  $k"; MISSING=1
   fi
 done
+grep -q '^NOTIFY_URL=__SET_ME__' "$ETC/backend.env" && \
+  note "(optional) $ETC/backend.env  NOTIFY_URL — where flagged-activity notifications go"
 [ $MISSING = 0 ] && note "none — run scripts/verify.sh next" || \
   note "Edit those, then re-run this installer (or: systemctl restart family-search)."
 echo; echo "Done."

@@ -15,7 +15,8 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from .config import ConfigStore, Host, url_prefixes
-from .db import DB, now_iso
+from .activity import ActivityService, match_term
+from .db import DB
 from .meili import LIBRARY, MARK_POST, MARK_PRE, PHOTOS, WEB, Meili, in_filter
 
 MAX_QUERY = 200
@@ -47,21 +48,7 @@ def _fold(s: str) -> str:
 
 
 def is_blocked(q: str, blocked: list[str]) -> bool:
-    if not blocked:
-        return False
-    folded = _fold(q)
-    tokens = re.findall(r"[a-z0-9]+", folded)
-    padded = " " + " ".join(tokens) + " "
-    compact = "".join(tokens)
-    for term in blocked:
-        t_tokens = re.findall(r"[a-z0-9]+", _fold(term))
-        if not t_tokens:
-            continue
-        if f" {' '.join(t_tokens)} " in padded:
-            return True
-        if compact and compact == "".join(t_tokens):
-            return True
-    return False
+    return match_term(q, blocked) is not None
 
 
 def safe_https_url(url: Any, expected_host: str | None = None) -> str | None:
@@ -163,10 +150,12 @@ class Scope:
 
 
 class SearchService:
-    def __init__(self, cfg: ConfigStore, meili: Meili, db: DB):
+    def __init__(self, cfg: ConfigStore, meili: Meili, db: DB,
+                 activity: "ActivityService | None" = None):
         self.cfg = cfg
         self.meili = meili
         self.db = db
+        self.activity = activity
 
     # -- scope ---------------------------------------------------------------
     def scope(self, tile: dict | None) -> "Scope":
@@ -332,10 +321,13 @@ class SearchService:
             q = tile["query"]
         resp: dict[str, Any] = {"q": q, "type": type_, "blocked": False, "page": page,
                                 "tile": tile["label"] if tile else None}
-        if is_blocked(q, self.cfg.filters()["blocked"]):
+        filters = self.cfg.filters()
+        blocked_term = match_term(q, filters["blocked"])
+        if blocked_term:
             resp.update(blocked=True, results=[], total_pages=0, photos=[], library=[])
+            self._log(q, type_, tile, page, 0, "blocked", blocked_term)
             return resp
-        self._remember(q, type_)
+        watch_term = match_term(q, filters.get("watch") or [])
         lib_ok = tile is None or tile.get("include_library")
         if type_ == "web":
             resp.update(self.web(q, page, tile))
@@ -345,8 +337,8 @@ class SearchService:
         elif type_ == "photos":
             resp.update(self.photos(q, page))
         else:  # all: web + library first, then a compact photo strip
-            library_only = bool(tile and tile.get("include_library")
-                                and not tile.get("categories") and not tile.get("hosts"))
+            library_only = bool(tile and tile.get("include_library") and not tile.get("categories")
+                                and not tile.get("hosts") and not tile.get("sections"))
             if library_only:
                 resp.update({"results": [], "page": page, "total_pages": 0})
             else:
@@ -359,13 +351,20 @@ class SearchService:
                               if page == 1 and q and tile is None else [])
         resp.setdefault("photos", [])
         resp.setdefault("library", [])
+        count = len(resp.get("results") or []) + len(resp["library"]) + len(resp["photos"])
+        self._log(q, type_, tile, page, count, "watch" if watch_term else "", watch_term or "")
         return resp
 
-    def _remember(self, q: str, type_: str) -> None:
-        if not q or not self.db.get_setting("store_history", False):
+    def _log(self, q: str, type_: str, tile: dict | None, page: int, count: int,
+             flag: str, term: str) -> None:
+        # Only the first page of a search is "activity"; paging is not a new search.
+        if self.activity is None or (page != 1 and not flag):
             return
-        with self.db.conn() as c:
-            c.execute("INSERT INTO search_history(ts, q, type) VALUES (?,?,?)", (now_iso(), q, type_))
+        if not q and tile is None and type_ != "photos":
+            return
+        kind = "tile" if tile and not q else "search"
+        self.activity.record(kind, q=q, tab=type_, tile=tile["label"] if tile else "",
+                             results=count, flag=flag, term=term)
 
     def tile_count(self, tile: dict) -> int | None:
         """Roughly how many approved pages a tile reaches (parent page hint)."""

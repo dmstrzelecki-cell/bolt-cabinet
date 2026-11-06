@@ -57,6 +57,7 @@ table inet familysearch {
   chain web_out {
     ip daddr @DNS_IP@ meta l4proto { tcp, udp } th dport 53 accept
     ip daddr @IMMICH_IP@ tcp dport 2283 accept
+    ip daddr @NOTIFY_IP@ tcp dport @NOTIFY_PORT@ accept
     ip daddr @private4 drop
     ip6 daddr @private6 drop
     tcp dport 443 accept

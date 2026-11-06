@@ -80,12 +80,7 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS search_history (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts    TEXT NOT NULL,
-  q     TEXT NOT NULL,
-  type  TEXT NOT NULL
-);
+-- The activity log table is created by activity.py.
 """
 
 

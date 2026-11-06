@@ -138,13 +138,20 @@ class FakeMeili:
             searchable = body["attributesToSearchOn"]
         words = [w for w in re.findall(r"\w+", (body.get("q") or "").lower())]
         pred = _parse_filter(body.get("filter") or "")
+        # Meilisearch's default matchingStrategy "last": if nothing matches every
+        # word, drop words from the end until something matches.
         hits = []
-        for d in idx.values():
-            if not pred(d):
-                continue
-            hay = " ".join(str(d.get(a, "")) for a in searchable).lower()
-            if all(w in hay for w in words):
-                hits.append(d)
+        need = list(words)
+        while True:
+            for d in idx.values():
+                if not pred(d):
+                    continue
+                hay = " ".join(str(d.get(a, "")) for a in searchable).lower()
+                if all(w in hay for w in need):
+                    hits.append(d)
+            if hits or len(need) <= 1:
+                break
+            need = need[:-1]
         for s in reversed(body.get("sort") or []):
             field, _, order = s.partition(":")
             hits.sort(key=lambda d: str(d.get(field, "")), reverse=(order == "desc"))

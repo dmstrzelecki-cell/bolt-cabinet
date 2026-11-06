@@ -185,6 +185,7 @@ main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 0 16px 2
                 background: var(--surface); cursor: pointer; font-weight: 700; }
 .pager button[aria-current="page"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
 
+.monitor-note { margin: 0; font-size: 13px; color: var(--muted); }
 .foot { text-align: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
 
 /* ------------------------------------------------------------------ viewer */

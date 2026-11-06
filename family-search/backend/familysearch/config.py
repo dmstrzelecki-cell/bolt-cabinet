@@ -79,6 +79,8 @@ class Settings:
     immich_api_key: str | None
     search_rate_per_min: int
     thumb_rate_per_min: int
+    notify_url: str | None = None
+    notify_format: str = "ntfy"
 
     @property
     def auth_configured(self) -> bool:
@@ -136,6 +138,8 @@ def load_settings() -> Settings:
         immich_api_key=env("IMMICH_API_KEY"),
         search_rate_per_min=int(env("FS_SEARCH_RATE", "60") or 60),
         thumb_rate_per_min=int(env("FS_THUMB_RATE", "300") or 300),
+        notify_url=env("NOTIFY_URL") if is_set(env("NOTIFY_URL")) else None,
+        notify_format=(env("NOTIFY_FORMAT", "ntfy") or "ntfy").lower(),
     )
 
 
@@ -536,6 +540,7 @@ def parse_filters(text: str) -> dict:
     if not isinstance(doc, dict):
         raise ConfigError("blocked_terms.yaml must be a mapping")
     blocked = sorted({_norm_term(t) for t in (doc.get("blocked") or []) if _norm_term(t)})
+    watch = sorted({_norm_term(t) for t in (doc.get("watch") or []) if _norm_term(t)} - set(blocked))
     syn_raw = doc.get("synonyms") or {}
     if not isinstance(syn_raw, dict):
         raise ConfigError("synonyms must be a mapping of word -> list of words")
@@ -546,17 +551,20 @@ def parse_filters(text: str) -> dict:
         vals = [_norm_term(x) for x in vals if _norm_term(x) and _norm_term(x) != key]
         if key and vals:
             synonyms[key] = sorted(set(vals))
-    return {"blocked": blocked, "synonyms": synonyms}
+    return {"blocked": blocked, "watch": watch, "synonyms": synonyms}
 
 
 def dump_filters(doc: dict) -> str:
     head = (
         "# blocked: a search containing any of these words or phrases shows a calm\n"
-        "#          'ask a grown-up' message instead of results.\n"
+        "#          'ask a grown-up' message instead of results. Flagged in the\n"
+        "#          activity log (and notified) when monitoring is on.\n"
+        "# watch:   searches are allowed as normal, but flagged for a parent to see\n"
+        "#          (and notified) when monitoring is on — e.g. names, apps, self-harm words.\n"
         "# synonyms: word -> words that should also match.\n"
     )
     return head + yaml.safe_dump(
-        {"blocked": doc["blocked"], "synonyms": doc["synonyms"]},
+        {"blocked": doc["blocked"], "watch": doc.get("watch", []), "synonyms": doc["synonyms"]},
         sort_keys=False, allow_unicode=True,
     )
 
