@@ -168,6 +168,12 @@ main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: 0 16px 2
 @keyframes pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .loading .bar { animation: none; } }
 
+.ask-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+              margin: 4px 0 10px; padding: 14px 16px; border-radius: 18px;
+              background: color-mix(in srgb, var(--secondary) 12%, var(--surface));
+              border: 1px solid color-mix(in srgb, var(--secondary) 35%, transparent); }
+.ask-banner .ask-text { flex: 1 1 220px; }
+.ask-banner .btn { flex: none; }
 .photo-strip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; scrollbar-width: thin; }
 .photo-strip button { flex: none; width: 96px; height: 96px; }
 .photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }

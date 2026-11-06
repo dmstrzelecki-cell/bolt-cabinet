@@ -24,6 +24,7 @@ KIND_TEXT = {
     "blocked": "a blocked search",
     "watch": "a search with a watch word",
     "request": "an Ask-a-grown-up request",
+    "typed": "a flagged word typed in the search box",
     "test": "a test notification",
 }
 

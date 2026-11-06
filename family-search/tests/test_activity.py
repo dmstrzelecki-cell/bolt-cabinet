@@ -177,3 +177,84 @@ def test_notify_url_never_reaches_the_browser(mon):
     parent.get("/api/parent/state")
     child.get("/api/config")
     assert b"secret-topic" not in b"".join(parent.bodies + child.bodies)
+
+
+def type_out(child, text):
+    """What the search box sends as she types (one call per pause)."""
+    for i in range(2, len(text) + 1):
+        child.get("/api/suggest", params={"q": text[:i]})
+
+
+def rows_of(parent, kind=None):
+    rows = parent.get("/api/parent/activity").json()["rows"]
+    return [r for r in rows if kind is None or r["kind"] == kind]
+
+
+def test_typed_but_erased_flagged_word_is_logged_once(mon, sent, clock):
+    child, parent, core = mon
+    turn_on(parent)
+    type_out(child, "how do i get snapchat on my phone")   # then she erases it
+    typed = rows_of(parent, "typed")
+    assert len(typed) == 1
+    assert typed[0]["q"] == "how do i get snapchat on my phone"  # the fullest draft is kept
+    assert typed[0]["flag"] == "watch" and typed[0]["term"] == "snapchat"
+    assert len(sent.msgs) == 1 and "typed in the search box" in sent.msgs[0]["body"]
+    assert "snapchat" not in sent.msgs[0]["body"]               # no text unless opted in
+
+
+def test_ordinary_typing_is_never_logged(mon, sent):
+    child, parent, core = mon
+    turn_on(parent)
+    type_out(child, "how far away is the moon")
+    type_out(child, "snap peas")       # "snap" is not the watch word "snapchat"
+    assert rows_of(parent) == [] and sent.msgs == []
+
+
+def test_drafts_ignored_when_monitoring_is_off(mon, sent):
+    child, parent, core = mon
+    type_out(child, "naked mole rat")
+    assert rows_of(parent) == [] and sent.msgs == []
+
+
+def test_blocked_word_typed_is_flagged_blocked(mon):
+    child, parent, core = mon
+    turn_on(parent)
+    type_out(child, "naked")
+    assert child.get("/api/suggest?q=naked").json()["suggestions"] == []
+    typed = rows_of(parent, "typed")
+    assert len(typed) == 1 and typed[0]["flag"] == "blocked" and typed[0]["term"] == "naked"
+
+
+def test_typed_then_searched_becomes_one_search_row(mon, sent, clock):
+    child, parent, core = mon
+    turn_on(parent)
+    type_out(child, "discord servers")
+    child.get("/api/search?q=discord servers")
+    rows = rows_of(parent)
+    assert [(r["kind"], r["term"]) for r in rows] == [("search", "discord")]
+    clock.t += 10_000
+    core.notifier.flush()
+    assert len(sent.msgs) == 1   # told once, not twice
+    type_out(child, "discord servers")   # typing it again right after searching adds nothing
+    assert len(rows_of(parent)) == 1
+
+
+def test_two_different_flagged_words_are_two_rows(mon):
+    child, parent, core = mon
+    turn_on(parent)
+    type_out(child, "tiktok")
+    type_out(child, "vape")
+    assert sorted(r["term"] for r in rows_of(parent, "typed")) == ["tiktok", "vape"]
+
+
+def test_watch_word_search_offers_ask_a_grownup(mon, fake_meili):
+    child, parent, core = mon
+    seed(fake_meili, *SEED)
+    d = child.get("/api/search?q=moon bullying").json()
+    assert d["suggest_ask"] is True and d["blocked"] is False and d["results"]   # results still shown
+    assert "bullying" not in str({k: v for k, v in d.items() if k != "q"})       # word not revealed
+    assert child.get("/api/search?q=moon").json()["suggest_ask"] is False
+    assert child.get("/api/search?q=naked").json()["suggest_ask"] is False       # blocked has its own message
+    parent.post("/api/parent/settings", json={"watch_prompt": False})
+    assert child.get("/api/search?q=moon bullying").json()["suggest_ask"] is False
+    assert parent.get("/api/parent/state").json()["settings"]["watch_prompt"] is False

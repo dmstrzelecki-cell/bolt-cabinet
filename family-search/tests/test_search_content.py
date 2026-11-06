@@ -106,7 +106,8 @@ def test_empty_results_never_fall_back_to_the_wider_web(child, fake_meili, core)
     seed(fake_meili, *SEED)
     d = child.get("/api/search?q=zebrafinchquasar").json()
     assert d["results"] == [] and d["library"] == [] and d["photos"] == []
-    assert set(d) <= {"q", "type", "blocked", "page", "tile", "results", "total_pages", "photos", "library"}
+    assert set(d) <= {"q", "type", "blocked", "page", "tile", "results", "total_pages", "photos", "library",
+                      "suggest_ask"}
     # every outbound call the app made during the request went to Meilisearch only
     assert all(p.startswith(("/indexes", "/health", "/tasks")) for _, p in fake_meili.requests)
 

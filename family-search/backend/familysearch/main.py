@@ -316,6 +316,8 @@ def create_app(settings: Settings | None = None, verifier: AccessVerifier | None
             return JSONResponse({"suggestions": []})
         if not core.limiter.allow("suggest", i.email, 240):
             return JSONResponse({"suggestions": []})
+        f = core.cfg.filters()
+        core.activity.draft(normalize_query(q), f["blocked"], f.get("watch") or [])
         return JSONResponse({"suggestions": core.search.suggest(q)})
 
     @app.get("/api/curious")

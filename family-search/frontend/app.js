@@ -334,6 +334,7 @@ async function runSearch({ push }) {
 }
 
 function clearResults() {
+  $("ask-banner").replaceChildren(); $("ask-banner").hidden = true;
   $("list").replaceChildren();
   $("photo-grid").replaceChildren(); $("photo-grid").hidden = true;
   $("photo-strip").replaceChildren(); $("photo-strip").hidden = true;
@@ -346,6 +347,16 @@ function render(data) {
       "That search isn't something we look up here. A grown-up can help you find what you need.",
       askButton(data.q, "query"));
     return;
+  }
+  if (data.suggest_ask) {
+    // Gentle, not blocking: results still show below.
+    const box = $("ask-banner");
+    box.replaceChildren(
+      el("div", { class: "ask-text" },
+        el("b", { text: "This might be a good one to talk about." }),
+        el("span", { text: " A grown-up can help you find the right answer." })),
+      askButton(data.q, "query"));
+    box.hidden = false;
   }
   const isPhotos = state.type === "photos";
   const web = data.results || [];

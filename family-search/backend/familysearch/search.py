@@ -324,7 +324,7 @@ class SearchService:
         filters = self.cfg.filters()
         blocked_term = match_term(q, filters["blocked"])
         if blocked_term:
-            resp.update(blocked=True, results=[], total_pages=0, photos=[], library=[])
+            resp.update(blocked=True, results=[], total_pages=0, photos=[], library=[], suggest_ask=False)
             self._log(q, type_, tile, page, 0, "blocked", blocked_term)
             return resp
         watch_term = match_term(q, filters.get("watch") or [])
@@ -351,6 +351,9 @@ class SearchService:
                               if page == 1 and q and tile is None else [])
         resp.setdefault("photos", [])
         resp.setdefault("library", [])
+        # A watch word still gets results, plus a gentle "ask a grown-up" card.
+        # The response never says which word matched.
+        resp["suggest_ask"] = bool(watch_term) and bool(self.db.get_setting("watch_prompt", True))
         count = len(resp.get("results") or []) + len(resp["library"]) + len(resp["photos"])
         self._log(q, type_, tile, page, count, "watch" if watch_term else "", watch_term or "")
         return resp

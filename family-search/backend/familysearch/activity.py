@@ -16,13 +16,14 @@ from .notify import Notifier
 DEFAULT_NOTIFY = {"blocked": True, "watch": True, "request": True, "include_text": False}
 RETENTION_CHOICES = (30, 90, 365)
 DEFAULT_RETENTION = 90
-KINDS = ("search", "tile", "open", "ask")
+KINDS = ("search", "tile", "open", "ask", "typed")
+DRAFT_WINDOW = 600  # seconds: drafts of the same flagged word merge into one row
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS activity (
   id      INTEGER PRIMARY KEY AUTOINCREMENT,
   ts      TEXT NOT NULL,
-  kind    TEXT NOT NULL,           -- search | tile | open | ask
+  kind    TEXT NOT NULL,           -- search | tile | open | ask | typed
   q       TEXT NOT NULL DEFAULT '',
   tab     TEXT NOT NULL DEFAULT '',
   tile    TEXT NOT NULL DEFAULT '',
@@ -86,15 +87,46 @@ class ActivityService:
                url: str = "", flag: str = "", term: str = "") -> None:
         if kind not in KINDS or not self.enabled():
             return
+        superseded = False
         with self.db.conn() as c:
+            if flag in ("blocked", "watch") and kind == "search":
+                # She went on to search it: the search row replaces the draft row
+                # (and was already notified about, so don't notify twice).
+                cur = c.execute("DELETE FROM activity WHERE kind='typed' AND term=? AND epoch >= ?",
+                                (term[:60], time.time() - DRAFT_WINDOW))
+                superseded = cur.rowcount > 0
             c.execute("""INSERT INTO activity(ts, kind, q, tab, tile, results, url, flag, term, epoch)
                          VALUES (?,?,?,?,?,?,?,?,?,?)""",
                       (now_iso(), kind, q[:200], tab[:12], tile[:24], results, url[:500],
                        flag, term[:60], time.time()))
         self._prune()
         opts = self.notify_opts()
-        if flag in ("blocked", "watch") and opts.get(flag):
-            self.notifier.notify(flag, q if opts.get("include_text") else None)
+        if flag in ("blocked", "watch") and opts.get(flag) and not superseded:
+            self.notifier.notify("typed" if kind == "typed" else flag,
+                                 q if opts.get("include_text") else None)
+
+    def draft(self, q: str, blocked: list[str], watch: list[str]) -> None:
+        """A partly typed query from the autocomplete call. Logged ONLY if it
+        contains a blocked or watch word; ordinary typing is never kept.
+        Successive drafts of the same word collapse into one row."""
+        if not q or not self.enabled():
+            return
+        flag, term = "blocked", match_term(q, blocked)
+        if term is None:
+            flag, term = "watch", match_term(q, watch)
+        if term is None:
+            return
+        with self.db.conn() as c:
+            row = c.execute("""SELECT id, q FROM activity WHERE kind IN ('typed','search') AND term=?
+                               AND epoch >= ? ORDER BY id DESC LIMIT 1""",
+                            (term[:60], time.time() - DRAFT_WINDOW)).fetchone()
+            if row is not None:
+                # Already logged (as a draft or a search) a moment ago: keep the
+                # fullest version of the draft, don't add a row or re-notify.
+                c.execute("UPDATE activity SET q=?, ts=?, epoch=? WHERE id=? AND kind='typed' "
+                          "AND length(?) >= length(q)", (q[:200], now_iso(), time.time(), row["id"], q))
+                return
+        self.record("typed", q=q, flag=flag, term=term)
 
     def request_made(self, text: str) -> None:
         """Ask-a-grown-up is saved on her tap regardless; notify if wanted."""

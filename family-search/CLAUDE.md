@@ -127,7 +127,15 @@ indexed document shape means bumping `DOC_VERSION` in `crawler.py`.
 the master switch. When on, logs submitted searches (page 1 only), tile taps,
 pages she opens (`POST /api/activity`, sent with `keepalive` so it never
 delays the tap; only approved URLs are recorded) and Ask-a-grown-up taps —
-never autocomplete keystrokes. Every search is checked against `blocked`
+never ordinary autocomplete keystrokes. The one exception: a draft that
+contains a blocked or watch word is logged as `typed` ("Typed, not
+searched") even if she erases it. It's checked on the autocomplete call, so
+it needs a short pause and a whole word. Drafts of the same word within 10 min
+merge into one row (fullest text kept, one notification), and if she then
+searches it the search row replaces the draft. A watch-word search also
+returns `suggest_ask: true`, so the UI shows a gentle "Ask a grown-up" card
+above the results (parent setting `watch_prompt`, default on; the response
+never says which word matched). Every search is checked against `blocked`
 (no results, flagged) and `watch` (results shown, flagged) in
 `blocked_terms.yaml`. Flags can notify via `NOTIFY_URL` (ntfy or JSON
 webhook, in the root-only env file — it is a secret); bursts are coalesced
@@ -150,6 +158,6 @@ cache: `scripts/rebuild-index.sh` recreates it. Never edit the index directly.
 - Don't touch Cloudflare, Family Link, or Immich settings — those are David's manual steps.
 
 ## Tests
-`pytest tests/` (75 tests, fakes for Meilisearch/Immich/web) and
+`pytest tests/` (82 tests, fakes for Meilisearch/Immich/web) and
 `tests/e2e/run.sh` (Chromium at 360 px). On the CT: `scripts/verify.sh`.
 Results go in `TEST-RESULTS.md`.

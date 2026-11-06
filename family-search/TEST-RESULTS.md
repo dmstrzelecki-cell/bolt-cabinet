@@ -13,8 +13,8 @@ are simulated with in-process fakes; Chromium is real.
 ## Summary
 | Suite | Result |
 |---|---|
-| `pytest tests/` — unit + acceptance with fakes | **75 passed, 0 failed** |
-| `tests/e2e/run.sh` — real Chromium at 360 px against the real app | **37 passed, 0 failed** |
+| `pytest tests/` — unit + acceptance with fakes | **82 passed, 0 failed** |
+| `tests/e2e/run.sh` — real Chromium at 360 px against the real app | **41 passed, 0 failed** |
 | `pip-audit` on `backend/requirements.lock` | **No known vulnerabilities found** (python-multipart 0.0.20 was flagged and bumped to 0.0.33) |
 | `shellcheck -S warning scripts/*.sh` | clean |
 | `nft -c` on the rendered firewall | syntax OK |
@@ -53,6 +53,8 @@ are simulated with in-process fakes; Chromium is real.
 | Nothing logged until a parent turns monitoring on | PASS (local) | `test_nothing_is_logged_until_a_parent_turns_monitoring_on` |
 | Searches, tile taps, opened pages and asks logged; blocked and watch words flagged; autocomplete never logged | PASS (local) | `test_logs_searches_tiles_opens_and_flags`, e2e activity flow |
 | Notifications carry no search text unless opted in; bursts coalesced | PASS (local) | `test_notifications_*` |
+| Flagged word typed then erased is logged once ("Typed, not searched"); ordinary typing never logged | PASS (local) | `test_typed_but_erased_flagged_word_is_logged_once`, `test_ordinary_typing_is_never_logged`, `test_typed_then_searched_becomes_one_search_row`, e2e |
+| Watch-word search shows an "Ask a grown-up" card above results, without revealing the word | PASS (local) | `test_watch_word_search_offers_ask_a_grownup`, e2e |
 | Real notification reaches David's phone | **pending on CT** | set `NOTIFY_URL`, press **Send a test** |
 | **Phone and recovery** | | |
 | Login, search, tiles, photos, links work in Chrome on her phone, Wi-Fi and cellular | **pending — David, on her phone** | after the manual Cloudflare + Family Link steps |
@@ -101,6 +103,13 @@ test_activity.py · test_test_notification_and_unconfigured — PASS
 test_activity.py · test_monitoring_off_keeps_log_until_cleared_and_settings_validate — PASS
 test_activity.py · test_child_cannot_read_activity — PASS
 test_activity.py · test_notify_url_never_reaches_the_browser — PASS
+test_activity.py · test_typed_but_erased_flagged_word_is_logged_once — PASS
+test_activity.py · test_ordinary_typing_is_never_logged — PASS
+test_activity.py · test_drafts_ignored_when_monitoring_is_off — PASS
+test_activity.py · test_blocked_word_typed_is_flagged_blocked — PASS
+test_activity.py · test_typed_then_searched_becomes_one_search_row — PASS
+test_activity.py · test_two_different_flagged_words_are_two_rows — PASS
+test_activity.py · test_watch_word_search_offers_ask_a_grownup — PASS
 test_backup_restore.py · test_backup_then_restore_round_trip — PASS
 test_crawler.py · test_redirect_to_unapproved_host_is_not_indexed — PASS
 test_crawler.py · test_redirect_to_http_is_refused — PASS
@@ -154,7 +163,7 @@ test_search_content.py · test_concise_tiles_open_one_approved_page — PASS
 
 ## Raw output — Chromium e2e (360 px)
 ```
-PASS  home page loads in under 1 s (local)  (179 ms)
+PASS  home page loads in under 1 s (local)  (161 ms)
 PASS  12 tiles in a 2-column grid at 360px
 PASS  home: no horizontal scroll at 360px
 PASS  home: tap targets >= 44px  ([])
@@ -186,8 +195,12 @@ PASS  flipping back to Broad keeps the sections
 PASS  tile editor: no horizontal scroll at 360px
 PASS  her page shows the monitoring notice
 PASS  watch-word search still shows results
+PASS  watch-word search shows the Ask-a-grown-up card above results
+PASS  the card doesn't reveal the flagged word
+PASS  results page: no horizontal scroll with the card
 PASS  parent sees her search, flagged with the watch word
 PASS  parent sees the page she opened
+PASS  parent sees the erased draft as 'Typed, not searched'
 PASS  flagged-only filter works
 PASS  activity tab: no horizontal scroll at 360px
 PASS  child gets 403 on /parent

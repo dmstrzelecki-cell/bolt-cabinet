@@ -180,6 +180,8 @@ function wireForms() {
   });
   $("retention").addEventListener("change", (ev) =>
     act(() => api("/api/parent/settings", { retention_days: Number(ev.target.value) }), "Saved."));
+  $("watch-prompt").addEventListener("change", (ev) =>
+    act(() => api("/api/parent/settings", { watch_prompt: ev.target.checked }), "Saved."));
   $("show-notice").addEventListener("change", (ev) =>
     act(() => api("/api/parent/settings", { show_notice: ev.target.checked }), "Saved."));
   $("notify-save").addEventListener("click", () =>
@@ -461,13 +463,14 @@ function renderActivitySettings() {
   $("store-history").checked = !!st.store_history;
   $("retention").value = String(st.retention_days);
   $("show-notice").checked = !!st.show_notice;
+  $("watch-prompt").checked = st.watch_prompt !== false;
   $("n-blocked").checked = !!st.notify.blocked;
   $("n-watch").checked = !!st.notify.watch;
   $("n-request").checked = !!st.notify.request;
   $("n-text").checked = !!st.notify.include_text;
   const a = S.activity || {};
   $("act-summary").textContent = st.store_history
-    ? `Last 7 days: ${a.searches_7d || 0} searches, ${a.flagged_7d || 0} flagged.`
+    ? `Last 7 days: ${a.searches_7d || 0} ${(a.searches_7d || 0) === 1 ? "search" : "searches"}, ${a.flagged_7d || 0} flagged.`
     : "Off — nothing she does is being recorded.";
   $("act-badge").hidden = !a.flagged_7d;
   $("act-badge").textContent = String(a.flagged_7d || "");
@@ -478,7 +481,8 @@ function renderActivitySettings() {
   $("notify-test").disabled = !S.notify_configured;
 }
 
-const KIND_LABEL = { search: "Searched", tile: "Tapped tile", open: "Opened", ask: "Asked a grown-up" };
+const KIND_LABEL = { search: "Searched", tile: "Tapped tile", open: "Opened", ask: "Asked a grown-up",
+  typed: "Typed, not searched" };
 const FLAG_LABEL = { blocked: "blocked word", watch: "watch word", request: "ask" };
 
 async function loadActivity() {

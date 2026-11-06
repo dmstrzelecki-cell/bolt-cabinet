@@ -231,6 +231,10 @@ class ParentService:
                 raise ConfigError(f"Keep the log for {', '.join(map(str, RETENTION_CHOICES))} days.")
             self.db.set_setting("retention_days", days)
             self.db.audit(actor, "parent", "activity log retention", {"days": days})
+        if "watch_prompt" in body:
+            val = bool(body["watch_prompt"])
+            self.db.set_setting("watch_prompt", val)
+            self.db.audit(actor, "parent", "ask-a-grown-up on watch words " + ("on" if val else "off"))
         if "show_notice" in body:
             val = bool(body["show_notice"])
             self.db.set_setting("show_notice", val)
@@ -243,6 +247,7 @@ class ParentService:
             "notify": {**DEFAULT_NOTIFY, **(self.db.get_setting("notify") or {})},
             "retention_days": self.db.get_setting("retention_days", DEFAULT_RETENTION),
             "show_notice": bool(self.db.get_setting("show_notice", True)),
+            "watch_prompt": bool(self.db.get_setting("watch_prompt", True)),
         }
 
     # -- read model --------------------------------------------------------------
